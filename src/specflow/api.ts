@@ -27,10 +27,21 @@ export async function runCodeSearch(args: { repoPath: string; query: string }) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(args),
   })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    throw new Error(typeof data?.error === 'string' ? data.error : JSON.stringify(data))
+  const text = await res.text()
+  let data: unknown = null
+  try {
+    data = JSON.parse(text) as unknown
+  } catch {
+    data = null
   }
+  if (!res.ok) {
+    const maybeError = (data as { error?: unknown } | null)?.error
+    const msg = typeof maybeError === 'string'
+      ? maybeError
+      : `HTTP ${res.status}: ${data !== null ? JSON.stringify(data) : text.slice(0, 1000)}`
+    throw new Error(msg)
+  }
+  if (!data) throw new Error(`Invalid JSON from /api/relace-search (HTTP ${res.status})`)
   return data as { report: CodeSearchOutput; trace: { turn: number; toolCalls: string[] }[] }
 }
 
@@ -71,4 +82,3 @@ export async function runLLM(args: {
   if (typeof data?.output !== 'string') throw new Error('Invalid /api/llm response')
   return data.output as string
 }
-

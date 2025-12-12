@@ -361,11 +361,24 @@ async function callRelace(apiKey: string, messages: ChatMessage[]) {
       }),
       signal: controller.signal,
     })
-
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      throw new Error(`Relace API error: ${JSON.stringify(data)}`)
+    const text = await res.text()
+    let data: unknown = null
+    try {
+      data = JSON.parse(text) as unknown
+    } catch {
+      data = null
     }
+
+    if (!res.ok) {
+      throw new Error(
+        `Relace API error: status=${res.status} body=${data !== null ? JSON.stringify(data) : text.slice(0, 1000)}`,
+      )
+    }
+
+    if (!data) {
+      throw new Error(`Relace API error: status=${res.status} invalid_json=${text.slice(0, 1000)}`)
+    }
+
     return data
   } finally {
     clearTimeout(timeout)
@@ -373,7 +386,7 @@ async function callRelace(apiKey: string, messages: ChatMessage[]) {
 }
 
 export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRelaceSearchResult> {
-  const maxTurns = args.maxTurns ?? 8
+  const maxTurns = args.maxTurns ?? 12
 
   const repoStat = await stat(args.repoRoot)
   if (!repoStat.isDirectory()) throw new Error(`repoRoot is not a directory: ${args.repoRoot}`)
@@ -385,8 +398,7 @@ export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRel
 
   const trace: { turn: number; toolCalls: string[] }[] = []
 
-  for (let turn = 1; turn <= maxTurns; turn++) {
-    // @@@tool-loop - run tool calls in parallel, stop only at `report_back`
+  async function stepOnce(turn: number) {
     const completion = await callRelace(args.apiKey, messages)
     const assistant = completion?.choices?.[0]?.message
     if (!assistant) throw new Error(`Unexpected response: ${JSON.stringify(completion)}`)
@@ -402,7 +414,12 @@ export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRel
 
     const reportCall = toolCalls.find((t) => t.function.name === 'report_back')
     if (reportCall) {
-      const parsed = JSON.parse(reportCall.function.arguments) as ReportBackPayload
+      let parsed: ReportBackPayload
+      try {
+        parsed = JSON.parse(reportCall.function.arguments) as ReportBackPayload
+      } catch {
+        throw new Error(`Invalid report_back arguments: ${reportCall.function.arguments}`)
+      }
       return { report: parsed, trace }
     }
 
@@ -439,6 +456,25 @@ export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRel
     for (const result of toolResults) {
       messages.push({ role: 'tool', tool_call_id: result.tool_call_id, content: result.content })
     }
+
+    return null
+  }
+
+  for (let turn = 1; turn <= maxTurns; turn++) {
+    // @@@tool-loop - run tool calls in parallel, stop only at `report_back`
+    const done = await stepOnce(turn)
+    if (done) return done
+  }
+
+  // @@@force-report - if the model doesn't terminate, explicitly require report_back
+  messages.push({
+    role: 'user',
+    content:
+      'Stop exploring now. You must call report_back with your best current understanding. Do not call any other tool.',
+  })
+  for (let turn = maxTurns + 1; turn <= maxTurns + 2; turn++) {
+    const done = await stepOnce(turn)
+    if (done) return done
   }
 
   throw new Error(`Exceeded maxTurns (${maxTurns}) without report_back.`)

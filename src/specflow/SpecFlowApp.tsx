@@ -817,10 +817,20 @@ export function SpecFlowApp() {
         ) : null}
 
         <div className="sfButtons">
-          <button onClick={() => runNode(selectedNode.id)} disabled={!!selectedNode.data.locked}>
+          <button
+            onClick={() => {
+              runNode(selectedNode.id).catch(() => {})
+            }}
+            disabled={!!selectedNode.data.locked}
+          >
             Run
           </button>
-          <button onClick={() => runFrom(selectedNode.id)} disabled={!!selectedNode.data.locked}>
+          <button
+            onClick={() => {
+              runFrom(selectedNode.id).catch(() => {})
+            }}
+            disabled={!!selectedNode.data.locked}
+          >
             Chain
           </button>
           <button
