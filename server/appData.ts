@@ -74,6 +74,137 @@ export type AppData = {
   activeTabId: string | null
 }
 
+function normalizeStatus(status: unknown): NodeStatus {
+  if (status === 'idle' || status === 'running' || status === 'success' || status === 'error') return status
+  return 'idle'
+}
+
+function normalizeString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+function normalizeBool(value: unknown, fallback = false): boolean {
+  return typeof value === 'boolean' ? value : fallback
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null
+}
+
+function isNonNull<T>(value: T | null): value is T {
+  return value !== null
+}
+
+function normalizeNode(raw: unknown): AppNode | null {
+  const obj = asRecord(raw)
+  if (!obj) return null
+
+  const data = asRecord(obj.data) ?? {}
+  const position = asRecord(obj.position) ?? {}
+
+  const id = normalizeString(obj.id)
+  const type = obj.type
+  if (!id) return null
+  if (type !== 'code-search' && type !== 'context-converter' && type !== 'llm') return null
+  const x = typeof position.x === 'number' ? position.x : 0
+  const y = typeof position.y === 'number' ? position.y : 0
+
+  const base = {
+    title: normalizeString(data.title, type),
+    status: normalizeStatus(data.status),
+    error: typeof data.error === 'string' ? data.error : null,
+    locked: normalizeBool(data.locked, false),
+  }
+
+  if (type === 'code-search') {
+    const output = asRecord(data.output)
+    const normalizedOutput =
+      output && typeof output.explanation === 'string' && typeof output.files === 'object'
+        ? { explanation: output.explanation, files: output.files as Record<string, [number, number][]> }
+        : null
+
+    return {
+      id,
+      type,
+      position: { x, y },
+      data: {
+        ...base,
+        repoPath: normalizeString(data.repoPath),
+        query: normalizeString(data.query),
+        output: normalizedOutput,
+      },
+    }
+  }
+
+  if (type === 'context-converter') {
+    return {
+      id,
+      type,
+      position: { x, y },
+      data: {
+        ...base,
+        fullFile: normalizeBool(data.fullFile, true),
+        output: typeof data.output === 'string' ? data.output : null,
+      },
+    }
+  }
+
+  return {
+    id,
+    type,
+    position: { x, y },
+    data: {
+      ...base,
+      model: normalizeString(data.model, 'anthropic/claude-3.5-haiku'),
+      systemPrompt: normalizeString(data.systemPrompt),
+      query: normalizeString(data.query),
+      output: typeof data.output === 'string' ? data.output : null,
+    },
+  }
+}
+
+function normalizeAppData(raw: unknown): AppData {
+  // @@@appdata-migration - data.json is persisted; normalize older shapes (e.g. missing `locked`) for UI stability
+  const now = new Date().toISOString()
+  const root = asRecord(raw) ?? {}
+  const tabsRaw = Array.isArray(root.tabs) ? root.tabs : []
+  const tabs: Tab[] = tabsRaw
+    .map((t: unknown): Tab | null => {
+      const tab = asRecord(t) ?? {}
+      const id = normalizeString(tab.id)
+      if (!id) return null
+      const canvas = asRecord(tab.canvas) ?? {}
+      const nodesRaw = Array.isArray(canvas.nodes) ? canvas.nodes : []
+      const edgesRaw = Array.isArray(canvas.edges) ? canvas.edges : []
+      const nodes = nodesRaw.map(normalizeNode).filter(isNonNull)
+      const edges = edgesRaw
+        .map((e: unknown) => {
+          const edge = asRecord(e) ?? {}
+          return {
+            id: normalizeString(edge.id),
+            source: normalizeString(edge.source),
+            target: normalizeString(edge.target),
+          }
+        })
+        .filter((e) => e.id && e.source && e.target)
+
+      return {
+        id,
+        name: normalizeString(tab.name, 'Canvas'),
+        createdAt: normalizeString(tab.createdAt, now),
+        canvas: { nodes, edges },
+      }
+    })
+    .filter(isNonNull)
+
+  const activeTabId = normalizeString(root.activeTabId) || (tabs[0]?.id ?? null)
+  return {
+    version: typeof root.version === 'number' ? root.version : 1,
+    tabs,
+    activeTabId,
+  }
+}
+
 export function defaultAppData(): AppData {
   const now = new Date().toISOString()
   return {
@@ -145,7 +276,7 @@ const dataPath = path.join(process.cwd(), 'data.json')
 export async function loadAppData(): Promise<AppData> {
   try {
     const raw = await readFile(dataPath, 'utf-8')
-    return JSON.parse(raw) as AppData
+    return normalizeAppData(JSON.parse(raw))
   } catch (err: unknown) {
     const code = (err as NodeJS.ErrnoException).code
     if (code === 'ENOENT') return defaultAppData()

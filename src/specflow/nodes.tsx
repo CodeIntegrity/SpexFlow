@@ -57,7 +57,7 @@ export function CodeSearchNodeView({ data, selected }: NodeProps<CodeSearchData>
       status={data.status}
       subtitle={`repo: ${data.repoPath || '(unset)'}`}
       selected={selected}
-      locked={data.locked}
+      locked={!!data.locked}
     />
   )
 }
@@ -72,7 +72,7 @@ export function ContextConverterNodeView({
       status={data.status}
       subtitle={data.fullFile ? 'full files' : 'line ranges'}
       selected={selected}
-      locked={data.locked}
+      locked={!!data.locked}
     />
   )
 }
@@ -84,7 +84,7 @@ export function LLMNodeView({ data, selected }: NodeProps<LLMData>) {
       status={data.status}
       subtitle={`model: ${data.model || '(unset)'}`}
       selected={selected}
-      locked={data.locked}
+      locked={!!data.locked}
     />
   )
 }

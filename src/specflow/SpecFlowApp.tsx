@@ -608,7 +608,7 @@ export function SpecFlowApp() {
           <div>locked</div>
           <input
             type="checkbox"
-            checked={selectedNode.data.locked}
+            checked={!!selectedNode.data.locked}
             onChange={(e) =>
               patchSelectedNode((n) => ({
                 ...n,
@@ -626,8 +626,8 @@ export function SpecFlowApp() {
               repoPath
               <input
                 className="sfInput"
-                value={selectedNode.data.repoPath}
-                disabled={selectedNode.data.locked}
+                value={selectedNode.data.repoPath ?? ''}
+                disabled={!!selectedNode.data.locked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'code-search'
@@ -641,8 +641,8 @@ export function SpecFlowApp() {
               query
               <textarea
                 className="sfTextarea"
-                value={selectedNode.data.query}
-                disabled={selectedNode.data.locked}
+                value={selectedNode.data.query ?? ''}
+                disabled={!!selectedNode.data.locked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'code-search'
@@ -661,8 +661,8 @@ export function SpecFlowApp() {
             <div>fullFile</div>
             <input
               type="checkbox"
-              checked={selectedNode.data.fullFile}
-              disabled={selectedNode.data.locked}
+              checked={!!selectedNode.data.fullFile}
+              disabled={!!selectedNode.data.locked}
               onChange={(e) =>
                 patchSelectedNode((n) =>
                   n.type === 'context-converter'
@@ -680,8 +680,8 @@ export function SpecFlowApp() {
               model
               <input
                 className="sfInput"
-                value={selectedNode.data.model}
-                disabled={selectedNode.data.locked}
+                value={selectedNode.data.model ?? ''}
+                disabled={!!selectedNode.data.locked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'llm'
@@ -695,8 +695,8 @@ export function SpecFlowApp() {
               systemPrompt
               <textarea
                 className="sfTextarea"
-                value={selectedNode.data.systemPrompt}
-                disabled={selectedNode.data.locked}
+                value={selectedNode.data.systemPrompt ?? ''}
+                disabled={!!selectedNode.data.locked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'llm'
@@ -711,8 +711,8 @@ export function SpecFlowApp() {
               query
               <textarea
                 className="sfTextarea"
-                value={selectedNode.data.query}
-                disabled={selectedNode.data.locked}
+                value={selectedNode.data.query ?? ''}
+                disabled={!!selectedNode.data.locked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'llm'
@@ -750,10 +750,10 @@ export function SpecFlowApp() {
         ) : null}
 
         <div className="sfButtons">
-          <button onClick={() => runNode(selectedNode.id)} disabled={selectedNode.data.locked}>
+          <button onClick={() => runNode(selectedNode.id)} disabled={!!selectedNode.data.locked}>
             Run
           </button>
-          <button onClick={() => runFrom(selectedNode.id)} disabled={selectedNode.data.locked}>
+          <button onClick={() => runFrom(selectedNode.id)} disabled={!!selectedNode.data.locked}>
             Chain
           </button>
           <button
