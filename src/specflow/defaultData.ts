@@ -31,6 +31,7 @@ export function defaultCanvas(): Canvas {
         title: 'Code Search',
         status: 'idle',
         error: null,
+        locked: false,
         repoPath: 'examples/example-repo',
         query: 'How is user authentication handled in this codebase?',
         output: null,
@@ -44,6 +45,7 @@ export function defaultCanvas(): Canvas {
         title: 'Context',
         status: 'idle',
         error: null,
+        locked: false,
         fullFile: true,
         output: null,
       },
@@ -56,6 +58,7 @@ export function defaultCanvas(): Canvas {
         title: 'LLM',
         status: 'idle',
         error: null,
+        locked: false,
         model: 'anthropic/claude-3.5-haiku',
         systemPrompt:
           'You are a senior software engineer. Given code context, propose a concrete implementation plan and the key files to edit.',

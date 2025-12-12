@@ -14,6 +14,7 @@ function NodeShell(props: {
   status: NodeStatus
   subtitle: string
   selected: boolean
+  locked: boolean
 }) {
   const style = statusStyle(props.status)
   return (
@@ -26,6 +27,7 @@ function NodeShell(props: {
         padding: 10,
         fontSize: 12,
         boxShadow: props.selected ? '0 0 0 3px rgba(0, 110, 255, 0.25)' : 'none',
+        opacity: props.locked ? 0.92 : 1,
       }}
     >
       <Handle
@@ -38,7 +40,10 @@ function NodeShell(props: {
         position={Position.Right}
         style={{ width: 10, height: 10, background: '#666' }}
       />
-      <div style={{ fontWeight: 700 }}>{props.title}</div>
+      <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>{props.title}</span>
+        {props.locked ? <span style={{ fontSize: 12, opacity: 0.85 }}>🔒</span> : null}
+      </div>
       <div style={{ opacity: 0.8, marginTop: 4 }}>{props.subtitle}</div>
       <div style={{ marginTop: 8, opacity: 0.7 }}>status: {props.status}</div>
     </div>
@@ -52,6 +57,7 @@ export function CodeSearchNodeView({ data, selected }: NodeProps<CodeSearchData>
       status={data.status}
       subtitle={`repo: ${data.repoPath || '(unset)'}`}
       selected={selected}
+      locked={data.locked}
     />
   )
 }
@@ -66,6 +72,7 @@ export function ContextConverterNodeView({
       status={data.status}
       subtitle={data.fullFile ? 'full files' : 'line ranges'}
       selected={selected}
+      locked={data.locked}
     />
   )
 }
@@ -77,6 +84,7 @@ export function LLMNodeView({ data, selected }: NodeProps<LLMData>) {
       status={data.status}
       subtitle={`model: ${data.model || '(unset)'}`}
       selected={selected}
+      locked={data.locked}
     />
   )
 }

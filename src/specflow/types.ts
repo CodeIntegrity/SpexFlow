@@ -6,6 +6,7 @@ export type BaseNodeData = {
   title: string
   status: NodeStatus
   error: string | null
+  locked: boolean
 }
 
 export type CodeSearchOutput = {
@@ -54,4 +55,3 @@ export type AppData = {
   tabs: Tab[]
   activeTabId: string | null
 }
-

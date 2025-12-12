@@ -196,6 +196,7 @@ export function SpecFlowApp() {
           title: 'Code Search',
           status: 'idle',
           error: null,
+          locked: false,
           repoPath: '',
           query: '',
           output: null,
@@ -209,6 +210,7 @@ export function SpecFlowApp() {
           title: 'Context',
           status: 'idle',
           error: null,
+          locked: false,
           fullFile: true,
           output: null,
         },
@@ -221,6 +223,7 @@ export function SpecFlowApp() {
           title: 'LLM',
           status: 'idle',
           error: null,
+          locked: false,
           model: 'anthropic/claude-3.5-haiku',
           systemPrompt: '',
           query: '',
@@ -319,6 +322,7 @@ export function SpecFlowApp() {
       const snapshot = getActiveTab(appDataRef.current)
       const node = snapshot.canvas.nodes.find((n) => n.id === nodeId)
       if (!node) throw new Error(`Node not found: ${nodeId}`)
+      if (mode === 'single' && node.data.locked) throw new Error('Node is locked')
 
       const preds = predecessors(snapshot.canvas.nodes, snapshot.canvas.edges, nodeId)
       if (mode === 'single') {
@@ -449,6 +453,10 @@ export function SpecFlowApp() {
   }
 
   async function runFrom(nodeId: string) {
+    const tabNow = getActiveTab(appDataRef.current)
+    const start = tabNow.canvas.nodes.find((n) => n.id === nodeId)
+    if (start?.data.locked) return
+
     const localOutputs = new Map<string, LocalOutput>()
     const tabSnapshot = getActiveTab(appDataRef.current)
     const edges = tabSnapshot.canvas.edges
@@ -544,6 +552,21 @@ export function SpecFlowApp() {
     <div className="sfSidebar">
       <div>
         <div className="sfHeader">{selectedNode.data.title}</div>
+
+        <label className="sfLabel">
+          <div>locked</div>
+          <input
+            type="checkbox"
+            checked={selectedNode.data.locked}
+            onChange={(e) =>
+              patchSelectedNode((n) => ({
+                ...n,
+                data: { ...n.data, locked: e.target.checked },
+              }))
+            }
+          />
+        </label>
+
         <div className="sfSectionTitle">Settings</div>
 
         {selectedNode.type === 'code-search' ? (
@@ -553,6 +576,7 @@ export function SpecFlowApp() {
               <input
                 className="sfInput"
                 value={selectedNode.data.repoPath}
+                disabled={selectedNode.data.locked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'code-search'
@@ -567,6 +591,7 @@ export function SpecFlowApp() {
               <textarea
                 className="sfTextarea"
                 value={selectedNode.data.query}
+                disabled={selectedNode.data.locked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'code-search'
@@ -586,6 +611,7 @@ export function SpecFlowApp() {
             <input
               type="checkbox"
               checked={selectedNode.data.fullFile}
+              disabled={selectedNode.data.locked}
               onChange={(e) =>
                 patchSelectedNode((n) =>
                   n.type === 'context-converter'
@@ -604,6 +630,7 @@ export function SpecFlowApp() {
               <input
                 className="sfInput"
                 value={selectedNode.data.model}
+                disabled={selectedNode.data.locked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'llm'
@@ -618,6 +645,7 @@ export function SpecFlowApp() {
               <textarea
                 className="sfTextarea"
                 value={selectedNode.data.systemPrompt}
+                disabled={selectedNode.data.locked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'llm'
@@ -633,6 +661,7 @@ export function SpecFlowApp() {
               <textarea
                 className="sfTextarea"
                 value={selectedNode.data.query}
+                disabled={selectedNode.data.locked}
                 onChange={(e) =>
                   patchSelectedNode((n) =>
                     n.type === 'llm'
@@ -670,8 +699,12 @@ export function SpecFlowApp() {
         ) : null}
 
         <div className="sfButtons">
-          <button onClick={() => runNode(selectedNode.id)}>Run</button>
-          <button onClick={() => runFrom(selectedNode.id)}>Chain</button>
+          <button onClick={() => runNode(selectedNode.id)} disabled={selectedNode.data.locked}>
+            Run
+          </button>
+          <button onClick={() => runFrom(selectedNode.id)} disabled={selectedNode.data.locked}>
+            Chain
+          </button>
           <button
             onClick={() => {
               const text =
@@ -734,7 +767,10 @@ export function SpecFlowApp() {
           </div>
 
           <ReactFlow
-            nodes={activeTab.canvas.nodes}
+            nodes={activeTab.canvas.nodes.map((n) => ({
+              ...n,
+              draggable: !n.data.locked,
+            }))}
             edges={activeTab.canvas.edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
