@@ -13,7 +13,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { defaultAppData } from './defaultData'
-import type { AppData, AppNode, NodeStatus, Tab } from './types'
+import type { AppData, AppNode, Tab } from './types'
 import { buildRepoContext, fetchAppData, runCodeSearch, runLLM, saveAppData } from './api'
 import { CodeSearchNodeView, ContextConverterNodeView, LLMNodeView } from './nodes'
 
@@ -62,12 +62,17 @@ function concatPredecessorOutputs(preds: AppNode[]) {
 
 export function SpecFlowApp() {
   const [appData, setAppData] = useState<AppData>(() => defaultAppData())
+  const appDataRef = useRef(appData)
   const [selected, setSelected] = useState<Selected>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const saveTimer = useRef<number | null>(null)
   const inFlightRuns = useRef(new Map<string, Promise<void>>())
 
   const activeTab = useMemo(() => getActiveTab(appData), [appData])
+
+  useEffect(() => {
+    appDataRef.current = appData
+  }, [appData])
 
   useEffect(() => {
     let alive = true
@@ -228,12 +233,22 @@ export function SpecFlowApp() {
     }))
   }
 
+  function patchNodeById(nodeId: string, patch: (n: AppNode) => AppNode) {
+    updateActiveCanvas((t) => ({
+      ...t,
+      canvas: {
+        ...t.canvas,
+        nodes: updateNode(t.canvas.nodes, nodeId, patch),
+      },
+    }))
+  }
+
   async function runNode(nodeId: string) {
     const existing = inFlightRuns.current.get(nodeId)
     if (existing) return existing
 
     const promise = (async () => {
-      const snapshot = getActiveTab(appData)
+      const snapshot = getActiveTab(appDataRef.current)
       const node = snapshot.canvas.nodes.find((n) => n.id === nodeId)
       if (!node) throw new Error(`Node not found: ${nodeId}`)
 
@@ -242,10 +257,7 @@ export function SpecFlowApp() {
         throw new Error('Predecessors not succeeded yet.')
       }
 
-      patchSelectedNode((n) => {
-        if (n.id !== nodeId) return n
-        return { ...n, data: { ...n.data, status: 'running', error: null } as any }
-      })
+      patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'running', error: null } }))
 
       try {
         if (node.type === 'code-search') {
@@ -254,33 +266,27 @@ export function SpecFlowApp() {
           const finalQuery =
             query || window.prompt('Code search query?') || ''
           if (!finalQuery.trim()) throw new Error('Empty query')
-          if (!node.data.repoPath.trim()) {
-            const repoPath = window.prompt('Repo path?', node.data.repoPath || 'examples/example-repo') || ''
-            if (!repoPath.trim()) throw new Error('Empty repoPath')
-            patchSelectedNode((n) => (n.id === nodeId ? ({ ...n, data: { ...(n.data as any), repoPath } }) : n))
-          }
 
-          const repoPath = (node.data.repoPath || '').trim()
+          let repoPath = (node.data.repoPath || '').trim()
+          if (!repoPath) {
+            repoPath = window.prompt('Repo path?', 'examples/example-repo') || ''
+            if (!repoPath.trim()) throw new Error('Empty repoPath')
+          }
           const result = await runCodeSearch({ repoPath, query: finalQuery })
-          updateActiveCanvas((t) => ({
-            ...t,
-            canvas: {
-              ...t.canvas,
-              nodes: updateNode(t.canvas.nodes, nodeId, (n) => {
-                if (n.type !== 'code-search') return n
-                return {
-                  ...n,
-                  data: {
-                    ...n.data,
-                    query: finalQuery,
-                    output: result.report,
-                    status: 'success',
-                    error: null,
-                  },
-                }
-              }),
-            },
-          }))
+          patchNodeById(nodeId, (n) => {
+            if (n.type !== 'code-search') return n
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                repoPath,
+                query: finalQuery,
+                output: result.report,
+                status: 'success',
+                error: null,
+              },
+            }
+          })
           return
         }
 
@@ -300,75 +306,58 @@ export function SpecFlowApp() {
             }),
           )
 
-          updateActiveCanvas((t) => ({
-            ...t,
-            canvas: {
-              ...t.canvas,
-              nodes: updateNode(t.canvas.nodes, nodeId, (n) => {
-                if (n.type !== 'context-converter') return n
-                return {
-                  ...n,
-                  data: {
-                    ...n.data,
-                    output: contexts.join('\n\n---\n\n'),
-                    status: 'success',
-                    error: null,
-                  },
-                }
-              }),
-            },
-          }))
+          patchNodeById(nodeId, (n) => {
+            if (n.type !== 'context-converter') return n
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                output: contexts.join('\n\n---\n\n'),
+                status: 'success',
+                error: null,
+              },
+            }
+          })
           return
         }
 
         const context = concatPredecessorOutputs(preds)
         const finalQuery = node.data.query.trim() ? node.data.query.trim() : window.prompt('LLM query?') || ''
         if (!finalQuery.trim()) throw new Error('Empty query')
-        if (!node.data.systemPrompt.trim()) {
-          const systemPrompt = window.prompt('System prompt?', node.data.systemPrompt) || ''
+
+        let systemPrompt = node.data.systemPrompt.trim()
+        if (!systemPrompt) {
+          systemPrompt = window.prompt('System prompt?', '') || ''
           if (!systemPrompt.trim()) throw new Error('Empty systemPrompt')
-          patchSelectedNode((n) => (n.id === nodeId ? ({ ...n, data: { ...(n.data as any), systemPrompt } }) : n))
         }
-        if (!node.data.model.trim()) throw new Error('Empty model')
+
+        const model = node.data.model.trim()
+        if (!model) throw new Error('Empty model')
 
         const output = await runLLM({
-          model: node.data.model,
-          systemPrompt: node.data.systemPrompt,
+          model,
+          systemPrompt,
           query: finalQuery,
           context,
         })
 
-        updateActiveCanvas((t) => ({
-          ...t,
-          canvas: {
-            ...t.canvas,
-            nodes: updateNode(t.canvas.nodes, nodeId, (n) => {
-              if (n.type !== 'llm') return n
-              return {
-                ...n,
-                data: {
-                  ...n.data,
-                  query: finalQuery,
-                  output,
-                  status: 'success',
-                  error: null,
-                },
-              }
-            }),
-          },
-        }))
+        patchNodeById(nodeId, (n) => {
+          if (n.type !== 'llm') return n
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              systemPrompt,
+              query: finalQuery,
+              output,
+              status: 'success',
+              error: null,
+            },
+          }
+        })
       } catch (err: any) {
         const message = String(err?.message ?? err)
-        updateActiveCanvas((t) => ({
-          ...t,
-          canvas: {
-            ...t.canvas,
-            nodes: updateNode(t.canvas.nodes, nodeId, (n) => ({
-              ...n,
-              data: { ...n.data, status: 'error', error: message } as any,
-            })),
-          },
-        }))
+        patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'error', error: message } }))
         throw err
       }
     })()
@@ -381,7 +370,7 @@ export function SpecFlowApp() {
   }
 
   async function runFrom(nodeId: string) {
-    const snapshot = getActiveTab(appData)
+    const snapshot = getActiveTab(appDataRef.current)
     const visited = new Set<string>()
 
     async function walk(id: string) {
@@ -390,7 +379,7 @@ export function SpecFlowApp() {
 
       await runNode(id)
 
-      const snap2 = getActiveTab(appData)
+      const snap2 = getActiveTab(appDataRef.current)
       const next = successors(snap2.canvas.nodes, snap2.canvas.edges, id)
       await Promise.all(
         next.map(async (n) => {
@@ -619,4 +608,3 @@ export function SpecFlowApp() {
     </div>
   )
 }
-
