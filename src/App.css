@@ -1,76 +1,173 @@
-.app {
+.sfRoot {
   width: 100vw;
   height: 100vh;
-}
-
-.layout {
   display: flex;
-  width: 100%;
-  height: 100%;
-}
-
-.sidebar {
-  width: 420px;
-  border-right: 1px solid #e5e5e5;
-  padding: 12px;
-  overflow: auto;
+  flex-direction: column;
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
 }
 
-.canvas {
-  flex: 1;
-}
-
-.relaceTester label {
+.sfTabs {
+  height: 44px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-bottom: 1px solid #e5e5e5;
+  background: #fff;
+}
+
+.sfTab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  background: #fafafa;
+}
+
+.sfTabActive {
+  background: #fff;
+  border-color: #cfcfcf;
+}
+
+.sfTabName {
   font-size: 12px;
 }
 
-.relaceTester input,
-.relaceTester textarea {
-  font-size: 12px;
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+.sfTabClose {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 14px;
+  opacity: 0.7;
 }
 
-.relaceTester button {
-  padding: 8px 10px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+.sfTabAdd {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid #e5e5e5;
   background: #fff;
   cursor: pointer;
 }
 
-.relaceTester button[disabled] {
-  cursor: not-allowed;
-  opacity: 0.7;
+.sfBody {
+  flex: 1;
+  display: flex;
+  min-height: 0;
 }
 
-.relaceTesterRow {
-  margin-bottom: 12px;
+.sfCanvas {
+  flex: 1;
+  position: relative;
+  min-width: 0;
 }
 
-.relaceTesterLabel {
-  font-size: 12px;
+.sfToolbar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid #e5e5e5;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+}
+
+.sfToolbar button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  cursor: pointer;
+}
+
+.sfSidebar {
+  width: 420px;
+  border-left: 1px solid #e5e5e5;
+  padding: 12px;
+  overflow: auto;
+  background: #fff;
+}
+
+.sfHeader {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.sfSectionTitle {
+  margin-top: 10px;
   margin-bottom: 6px;
+  font-size: 12px;
+  opacity: 0.75;
 }
 
-.relaceTester pre {
+.sfLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.sfInput,
+.sfTextarea {
+  font-size: 12px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.sfOutput {
   font-size: 11px;
   line-height: 1.35;
   padding: 8px;
   border: 1px solid #eee;
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: auto;
-  max-height: 240px;
+  max-height: 260px;
   background: #fafafa;
 }
 
-.relaceTesterError {
+.sfOutputError {
   border-color: #ffdddd;
   background: #fff5f5;
+}
+
+.sfButtons {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.sfButtons button {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.sfEmpty {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.sfError {
+  border: 1px solid #ffdddd;
+  background: #fff5f5;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 12px;
+  margin-bottom: 10px;
 }
