@@ -5,7 +5,7 @@ import { runRelaceSearch } from './relaceSearch.js'
 import { loadAppData, saveAppData } from './appData.js'
 import { buildRepoContext } from './repoContext.js'
 import { runOpenRouterChat } from './openRouter.js'
-import { appendSearchRunLog, readRecentSearchRunLogs } from './searchRunLog.js'
+import { appendSearchRunLog, readRecentSearchRunLogs, readSearchRunDump } from './searchRunLog.js'
 
 const app = express()
 const PORT = 3001
@@ -29,13 +29,21 @@ app.post('/api/relace-search', async (req, res) => {
   try {
     const repoPathRaw = typeof req.body?.repoPath === 'string' ? req.body.repoPath : 'examples/example-repo'
     const query = typeof req.body?.query === 'string' ? req.body.query : 'How is user authentication handled in this codebase?'
+    const debugMessages = typeof req.body?.debugMessages === 'boolean' ? req.body.debugMessages : false
 
     const repoRoot = path.isAbsolute(repoPathRaw)
       ? repoPathRaw
       : path.join(process.cwd(), repoPathRaw)
 
     const apiKey = await readApiKeyFromDotfile()
-    const result = await runRelaceSearch({ apiKey, repoRoot, userQuery: query })
+    const result = await runRelaceSearch({
+      apiKey,
+      repoRoot,
+      userQuery: query,
+      runId: id,
+      dumpMessages: debugMessages,
+      dumpOnError: true,
+    })
     await appendSearchRunLog({
       id,
       startedAt: startedAt.toISOString(),
@@ -45,6 +53,8 @@ app.post('/api/relace-search', async (req, res) => {
       ok: true,
       trace: result.trace,
       reportFilesCount: Object.keys(result.report.files ?? {}).length,
+      messageDumpPath: result.messageDumpPath,
+      messageStats: result.messageStats,
     })
     res.json(result)
   } catch (err: unknown) {
@@ -58,6 +68,7 @@ app.post('/api/relace-search', async (req, res) => {
       query: typeof req.body?.query === 'string' ? req.body.query : '',
       ok: false,
       error: message,
+      messageDumpPath: `logs/relace-search-runs/${id}.json`,
     })
     res.status(500).json({ error: message })
   }
@@ -69,6 +80,19 @@ app.get('/api/relace-search/logs', async (req, res) => {
     const limit = Number.isFinite(limitRaw) ? limitRaw : 50
     const entries = await readRecentSearchRunLogs(limit)
     res.json({ entries })
+  } catch (err: unknown) {
+    console.error(err)
+    const message = err instanceof Error ? err.message : String(err)
+    res.status(500).json({ error: message })
+  }
+})
+
+app.get('/api/relace-search/logs/:id', async (req, res) => {
+  try {
+    const runId = req.params.id
+    if (typeof runId !== 'string' || !runId.trim()) throw new Error('Missing id')
+    const dump = await readSearchRunDump(runId)
+    res.json({ dump })
   } catch (err: unknown) {
     console.error(err)
     const message = err instanceof Error ? err.message : String(err)

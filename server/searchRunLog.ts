@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 export type SearchRunLogEntry = {
@@ -11,10 +11,13 @@ export type SearchRunLogEntry = {
   error?: string
   trace?: { turn: number; toolCalls: string[] }[]
   reportFilesCount?: number
+  messageDumpPath?: string
+  messageStats?: { turn: number; messagesChars: number; messagesCount: number }[]
 }
 
 const logDir = path.join(process.cwd(), 'logs')
 const logPath = path.join(logDir, 'relace-search.jsonl')
+const dumpDir = path.join(logDir, 'relace-search-runs')
 
 export async function appendSearchRunLog(entry: SearchRunLogEntry) {
   await mkdir(logDir, { recursive: true })
@@ -38,3 +41,15 @@ export async function readRecentSearchRunLogs(limit: number) {
     .filter(Boolean) as SearchRunLogEntry[]
 }
 
+export async function writeSearchRunDump(runId: string, dump: unknown) {
+  await mkdir(dumpDir, { recursive: true })
+  const p = path.join(dumpDir, `${runId}.json`)
+  await writeFile(p, `${JSON.stringify(dump, null, 2)}\n`, 'utf-8')
+  return p
+}
+
+export async function readSearchRunDump(runId: string) {
+  const p = path.join(dumpDir, `${runId}.json`)
+  const raw = await readFile(p, 'utf-8')
+  return JSON.parse(raw) as unknown
+}

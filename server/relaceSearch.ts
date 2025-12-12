@@ -2,6 +2,7 @@ import { readFile, readdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { writeSearchRunDump } from './searchRunLog.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -34,11 +35,16 @@ type RunRelaceSearchArgs = {
   repoRoot: string
   userQuery: string
   maxTurns?: number
+  runId?: string
+  dumpMessages?: boolean
+  dumpOnError?: boolean
 }
 
 export type RunRelaceSearchResult = {
   report: ReportBackPayload
   trace: { turn: number; toolCalls: string[] }[]
+  messageStats?: { turn: number; messagesChars: number; messagesCount: number }[]
+  messageDumpPath?: string
 }
 
 function buildSystemPrompt() {
@@ -251,6 +257,33 @@ function truncateToolOutput(label: string, content: string) {
   ].join('\n')
 }
 
+function getMessagesStats(messages: ChatMessage[]) {
+  const messagesCount = messages.length
+  let messagesChars = 0
+
+  for (const m of messages) {
+    if (m.role === 'system' || m.role === 'user') {
+      messagesChars += m.content.length
+      continue
+    }
+    if (m.role === 'tool') {
+      messagesChars += m.content.length
+      continue
+    }
+    if (m.role === 'assistant') {
+      if (typeof m.content === 'string') messagesChars += m.content.length
+      const calls = m.tool_calls ?? []
+      for (const c of calls) {
+        messagesChars += c.function.name.length
+        messagesChars += c.function.arguments?.length ?? 0
+      }
+      continue
+    }
+  }
+
+  return { messagesChars, messagesCount }
+}
+
 async function viewFile(repoRoot: string, args: { path: string; view_range: [number, number] }) {
   const resolved = requireRepoPath(repoRoot, args.path)
   const content = await readFile(resolved, 'utf-8')
@@ -409,6 +442,7 @@ async function callRelace(apiKey: string, messages: ChatMessage[]) {
 
 export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRelaceSearchResult> {
   const maxTurns = args.maxTurns ?? 12
+  const dumpOnError = args.dumpOnError ?? true
 
   const repoStat = await stat(args.repoRoot)
   if (!repoStat.isDirectory()) throw new Error(`repoRoot is not a directory: ${args.repoRoot}`)
@@ -419,8 +453,11 @@ export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRel
   ]
 
   const trace: { turn: number; toolCalls: string[] }[] = []
+  const messageStats: { turn: number; messagesChars: number; messagesCount: number }[] = []
+  let messageDumpPath: string | undefined
 
   async function stepOnce(turn: number) {
+    messageStats.push({ turn, ...getMessagesStats(messages) })
     const completion = await callRelace(args.apiKey, messages)
     const assistant = completion?.choices?.[0]?.message
     if (!assistant) throw new Error(`Unexpected response: ${JSON.stringify(completion)}`)
@@ -482,22 +519,51 @@ export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRel
     return null
   }
 
-  for (let turn = 1; turn <= maxTurns; turn++) {
-    // @@@tool-loop - run tool calls in parallel, stop only at `report_back`
-    const done = await stepOnce(turn)
-    if (done) return done
+  async function maybeDump(reason: string) {
+    if (!args.runId) return
+    if (!args.dumpMessages && reason !== 'error') return
+    // @@@message-dump - store the actual message history for token/debug inspection (tool outputs are already capped)
+    messageDumpPath = await writeSearchRunDump(args.runId, {
+      runId: args.runId,
+      reason,
+      userQuery: args.userQuery,
+      repoRoot: args.repoRoot,
+      maxTurns,
+      trace,
+      messageStats,
+      messages,
+    })
   }
 
-  // @@@force-report - if the model doesn't terminate, explicitly require report_back
-  messages.push({
-    role: 'user',
-    content:
-      'Stop exploring now. You must call report_back with your best current understanding. Do not call any other tool.',
-  })
-  for (let turn = maxTurns + 1; turn <= maxTurns + 2; turn++) {
-    const done = await stepOnce(turn)
-    if (done) return done
-  }
+  try {
+    for (let turn = 1; turn <= maxTurns; turn++) {
+      // @@@tool-loop - run tool calls in parallel, stop only at `report_back`
+      const done = await stepOnce(turn)
+      if (done) {
+        await maybeDump('success')
+        return { ...done, messageStats, messageDumpPath }
+      }
+    }
 
-  throw new Error(`Exceeded maxTurns (${maxTurns}) without report_back.`)
+    // @@@force-report - if the model doesn't terminate, explicitly require report_back
+    messages.push({
+      role: 'user',
+      content:
+        'Stop exploring now. You must call report_back with your best current understanding. Do not call any other tool.',
+    })
+    for (let turn = maxTurns + 1; turn <= maxTurns + 2; turn++) {
+      const done = await stepOnce(turn)
+      if (done) {
+        await maybeDump('success')
+        return { ...done, messageStats, messageDumpPath }
+      }
+    }
+
+    throw new Error(`Exceeded maxTurns (${maxTurns}) without report_back.`)
+  } catch (err) {
+    if (dumpOnError) {
+      await maybeDump('error')
+    }
+    throw err
+  }
 }
