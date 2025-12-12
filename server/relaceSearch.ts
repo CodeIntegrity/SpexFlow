@@ -5,6 +5,9 @@ import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 
+const MAX_TOOL_OUTPUT_CHARS = 12_000
+const MAX_VIEW_FILE_LINES = 400
+
 type ToolCall = {
   id: string
   type: 'function'
@@ -238,6 +241,16 @@ function requireRepoPath(repoRoot: string, toolPath: string) {
   return path.join(repoRoot, ...posixRemainder.split('/'))
 }
 
+function truncateToolOutput(label: string, content: string) {
+  if (content.length <= MAX_TOOL_OUTPUT_CHARS) return content
+  const head = content.slice(0, MAX_TOOL_OUTPUT_CHARS)
+  return [
+    `@@@truncated-tool-output - ${label} chars=${content.length} kept=${MAX_TOOL_OUTPUT_CHARS}`,
+    head,
+    '... (truncated) ...',
+  ].join('\n')
+}
+
 async function viewFile(repoRoot: string, args: { path: string; view_range: [number, number] }) {
   const resolved = requireRepoPath(repoRoot, args.path)
   const content = await readFile(resolved, 'utf-8')
@@ -245,13 +258,19 @@ async function viewFile(repoRoot: string, args: { path: string; view_range: [num
 
   const startLine = Math.max(1, args.view_range[0] ?? 1)
   const endRaw = args.view_range[1] ?? 100
-  const endLine = endRaw === -1 ? lines.length : Math.max(startLine, endRaw)
+  const requestedEnd = endRaw === -1 ? lines.length : Math.max(startLine, endRaw)
+  const endLine = Math.min(requestedEnd, startLine + MAX_VIEW_FILE_LINES - 1)
 
   const slice = lines.slice(startLine - 1, endLine)
   const body = slice.map((line, idx) => `${startLine + idx}   ${line}`).join('\n')
 
-  if (endLine < lines.length) return `${body}\n... rest of file truncated ...`
-  return body
+  if (endLine < requestedEnd || requestedEnd < lines.length) {
+    return truncateToolOutput(
+      `view_file ${args.path} lines=${lines.length} shown=${startLine}-${endLine}`,
+      `${body}\n... rest of file truncated ...`,
+    )
+  }
+  return truncateToolOutput(`view_file ${args.path}`, body)
 }
 
 async function viewDirectory(repoRoot: string, args: { path: string; include_hidden: boolean }) {
@@ -280,7 +299,7 @@ async function viewDirectory(repoRoot: string, args: { path: string; include_hid
   }
 
   await walk(resolvedRoot, resolvedRoot)
-  return out.join('\n')
+  return truncateToolOutput(`view_directory ${args.path}`, out.join('\n'))
 }
 
 async function grepSearch(
@@ -307,7 +326,7 @@ async function grepSearch(
 
   try {
     const { stdout } = await execFileAsync('rg', rgArgs, { maxBuffer: 1024 * 1024 })
-    return stdout.trimEnd()
+    return truncateToolOutput('grep_search', stdout.trimEnd())
   } catch (err: unknown) {
     const code = (err as { code?: unknown }).code
     if (typeof code === 'number' && code === 1) return 'No matches found.'
@@ -325,7 +344,7 @@ async function bashTool(repoRoot: string, args: { command: string }) {
       timeout: 5000,
       maxBuffer: 1024 * 1024,
     })
-    return `${stdout}${stderr}`.trimEnd()
+    return truncateToolOutput('bash', `${stdout}${stderr}`.trimEnd())
   } catch (err: unknown) {
     // @@@bash-exit-codes - bash pipelines often return non-zero (e.g. grep no-match); return details to the model instead of aborting the whole run
     const code = (err as { code?: unknown }).code
@@ -333,7 +352,10 @@ async function bashTool(repoRoot: string, args: { command: string }) {
     const stderr = (err as { stderr?: unknown }).stderr
     const stdoutText = typeof stdout === 'string' ? stdout : ''
     const stderrText = typeof stderr === 'string' ? stderr : ''
-    return [`Command failed (exit=${code ?? 'unknown'})`, stdoutText, stderrText].filter(Boolean).join('\n').trimEnd()
+    return truncateToolOutput(
+      'bash',
+      [`Command failed (exit=${code ?? 'unknown'})`, stdoutText, stderrText].filter(Boolean).join('\n').trimEnd(),
+    )
   }
 }
 
