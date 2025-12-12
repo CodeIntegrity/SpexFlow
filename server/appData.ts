@@ -26,6 +26,11 @@ export type ContextConverterData = BaseNodeData & {
   output: string | null
 }
 
+export type InstructionData = BaseNodeData & {
+  text: string
+  output: string | null
+}
+
 export type LLMData = BaseNodeData & {
   model: string
   systemPrompt: string
@@ -45,6 +50,12 @@ export type AppNode =
     type: 'context-converter'
     position: { x: number; y: number }
     data: ContextConverterData
+  }
+  | {
+    id: string
+    type: 'instruction'
+    position: { x: number; y: number }
+    data: InstructionData
   }
   | {
     id: string
@@ -105,7 +116,7 @@ function normalizeNode(raw: unknown): AppNode | null {
   const id = normalizeString(obj.id)
   const type = obj.type
   if (!id) return null
-  if (type !== 'code-search' && type !== 'context-converter' && type !== 'llm') return null
+  if (type !== 'code-search' && type !== 'context-converter' && type !== 'instruction' && type !== 'llm') return null
   const x = typeof position.x === 'number' ? position.x : 0
   const y = typeof position.y === 'number' ? position.y : 0
 
@@ -144,6 +155,19 @@ function normalizeNode(raw: unknown): AppNode | null {
       data: {
         ...base,
         fullFile: normalizeBool(data.fullFile, true),
+        output: typeof data.output === 'string' ? data.output : null,
+      },
+    }
+  }
+
+  if (type === 'instruction') {
+    return {
+      id,
+      type,
+      position: { x, y },
+      data: {
+        ...base,
+        text: normalizeString(data.text),
         output: typeof data.output === 'string' ? data.output : null,
       },
     }

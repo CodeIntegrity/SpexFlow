@@ -25,6 +25,11 @@ export type ContextConverterData = BaseNodeData & {
   output: string | null
 }
 
+export type InstructionData = BaseNodeData & {
+  text: string
+  output: string | null
+}
+
 export type LLMData = BaseNodeData & {
   model: string
   systemPrompt: string
@@ -34,9 +39,10 @@ export type LLMData = BaseNodeData & {
 
 export type CodeSearchNode = Node<CodeSearchData, 'code-search'>
 export type ContextConverterNode = Node<ContextConverterData, 'context-converter'>
+export type InstructionNode = Node<InstructionData, 'instruction'>
 export type LLMNode = Node<LLMData, 'llm'>
 
-export type AppNode = CodeSearchNode | ContextConverterNode | LLMNode
+export type AppNode = CodeSearchNode | ContextConverterNode | InstructionNode | LLMNode
 
 export type Canvas = {
   nodes: AppNode[]

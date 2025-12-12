@@ -1,6 +1,6 @@
 import type { NodeProps } from '@xyflow/react'
 import { Handle, Position } from '@xyflow/react'
-import type { CodeSearchData, ContextConverterData, LLMData, NodeStatus } from './types'
+import type { CodeSearchData, ContextConverterData, InstructionData, LLMData, NodeStatus } from './types'
 
 function statusStyle(status: NodeStatus) {
   if (status === 'running') return { background: '#fff7d1', borderColor: '#f2c94c' }
@@ -83,6 +83,19 @@ export function LLMNodeView({ data, selected }: NodeProps<LLMData>) {
       title={data.title}
       status={data.status}
       subtitle={`model: ${data.model || '(unset)'}`}
+      selected={selected}
+      locked={!!data.locked}
+    />
+  )
+}
+
+export function InstructionNodeView({ data, selected }: NodeProps<InstructionData>) {
+  const firstLine = (data.text || '').split('\n')[0]?.trim()
+  return (
+    <NodeShell
+      title={data.title}
+      status={data.status}
+      subtitle={firstLine ? `“${firstLine.slice(0, 24)}${firstLine.length > 24 ? '…' : ''}”` : 'instruction'}
       selected={selected}
       locked={!!data.locked}
     />

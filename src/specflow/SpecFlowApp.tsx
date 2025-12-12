@@ -15,7 +15,7 @@ import '@xyflow/react/dist/style.css'
 import { defaultAppData, defaultCanvas } from './defaultData'
 import type { AppData, AppNode, CodeSearchOutput, Tab } from './types'
 import { buildRepoContext, fetchAppData, runCodeSearch, runLLM, saveAppData } from './api'
-import { CodeSearchNodeView, ContextConverterNodeView, LLMNodeView } from './nodes'
+import { CodeSearchNodeView, ContextConverterNodeView, InstructionNodeView, LLMNodeView } from './nodes'
 
 type Selected = { nodeId: string } | null
 
@@ -96,6 +96,7 @@ export function SpecFlowApp() {
     () => ({
       'code-search': CodeSearchNodeView,
       'context-converter': ContextConverterNodeView,
+      instruction: InstructionNodeView,
       llm: LLMNodeView,
     }),
     [],
@@ -154,6 +155,9 @@ export function SpecFlowApp() {
   function resetNodeRuntime(node: AppNode): AppNode {
     if (node.data.locked) return node
     if (node.type === 'code-search') {
+      return { ...node, data: { ...node.data, status: 'idle', error: null, output: null } }
+    }
+    if (node.type === 'instruction') {
       return { ...node, data: { ...node.data, status: 'idle', error: null, output: null } }
     }
     if (node.type === 'context-converter') {
@@ -240,6 +244,19 @@ export function SpecFlowApp() {
           output: null,
         },
       }
+    } else if (type === 'instruction') {
+      node = {
+        ...base,
+        type,
+        data: {
+          title: 'Instruction',
+          status: 'idle',
+          error: null,
+          locked: false,
+          text: '',
+          output: null,
+        },
+      }
     } else {
       node = {
         ...base,
@@ -291,7 +308,7 @@ export function SpecFlowApp() {
         ? { kind: 'code-search', value: node.data.output, repoPath: node.data.repoPath }
         : null
     }
-    if (node.type === 'context-converter' || node.type === 'llm') {
+    if (node.type === 'context-converter' || node.type === 'instruction' || node.type === 'llm') {
       return node.data.output ? { kind: 'string', value: node.data.output } : null
     }
     return null
@@ -304,7 +321,7 @@ export function SpecFlowApp() {
     const snap = getActiveTab(appDataRef.current)
     const n = snap.canvas.nodes.find((x) => x.id === nodeId)
     if (!n) return ''
-    if (n.type === 'context-converter' || n.type === 'llm') return n.data.output ?? ''
+    if (n.type === 'context-converter' || n.type === 'instruction' || n.type === 'llm') return n.data.output ?? ''
     return ''
   }
 
@@ -333,7 +350,7 @@ export function SpecFlowApp() {
   function concatPredStrings(preds: AppNode[], localOutputs?: Map<string, LocalOutput>) {
     const parts: string[] = []
     for (const p of preds) {
-      if (p.type === 'context-converter' || p.type === 'llm') {
+      if (p.type === 'context-converter' || p.type === 'instruction' || p.type === 'llm') {
         const s = getStringOutput(p.id, localOutputs).trim()
         if (s) parts.push(s)
       }
@@ -361,6 +378,31 @@ export function SpecFlowApp() {
       patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'running', error: null } }))
 
       try {
+        if (node.type === 'instruction') {
+          const predText = concatPredStrings(preds, localOutputs).trim()
+          const ownText = node.data.text.trim()
+          const finalText = ownText || predText || window.prompt('Instruction?') || ''
+          if (!finalText.trim()) throw new Error('Empty instruction')
+
+          patchNodeById(nodeId, (n) => {
+            if (n.type !== 'instruction') return n
+            return {
+              ...n,
+              data: {
+                ...n.data,
+                text: finalText,
+                output: finalText,
+                status: 'success',
+                error: null,
+              },
+            }
+          })
+
+          const out: LocalOutput = { kind: 'string', value: finalText }
+          localOutputs?.set(nodeId, out)
+          return out
+        }
+
         if (node.type === 'code-search') {
           const input = concatPredStrings(preds, localOutputs)
           const query = node.data.query.trim() ? node.data.query.trim() : input.trim()
@@ -674,6 +716,25 @@ export function SpecFlowApp() {
           </label>
         ) : null}
 
+        {selectedNode.type === 'instruction' ? (
+          <label className="sfLabel">
+            text
+            <textarea
+              className="sfTextarea"
+              value={selectedNode.data.text ?? ''}
+              disabled={!!selectedNode.data.locked}
+              onChange={(e) =>
+                patchSelectedNode((n) =>
+                  n.type === 'instruction'
+                    ? { ...n, data: { ...n.data, text: e.target.value } }
+                    : n,
+                )
+              }
+              rows={8}
+            />
+          </label>
+        ) : null}
+
         {selectedNode.type === 'llm' ? (
           <>
             <label className="sfLabel">
@@ -740,6 +801,12 @@ export function SpecFlowApp() {
         ) : null}
 
         {selectedNode.type === 'context-converter' ? (
+          <pre className="sfOutput">
+            {selectedNode.data.output ?? '(no output)'}
+          </pre>
+        ) : null}
+
+        {selectedNode.type === 'instruction' ? (
           <pre className="sfOutput">
             {selectedNode.data.output ?? '(no output)'}
           </pre>
@@ -814,6 +881,7 @@ export function SpecFlowApp() {
           <div className="sfToolbar">
             <button onClick={() => addNode('code-search')}>🔍</button>
             <button onClick={() => addNode('context-converter')}>📄</button>
+            <button onClick={() => addNode('instruction')}>📝</button>
             <button onClick={() => addNode('llm')}>🤖</button>
             <div className="sfToolbarSpacer" />
             <button onClick={resetActiveCanvasAll}>Reset</button>
