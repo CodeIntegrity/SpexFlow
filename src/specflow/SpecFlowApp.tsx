@@ -829,8 +829,11 @@ export function SpecFlowApp() {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             nodeTypes={nodeTypes}
-            onNodeClick={(_e, node) => setSelected({ nodeId: node.id })}
-            onPaneClick={() => setSelected(null)}
+            onSelectionChange={(params) => {
+              const nodes = params.nodes
+              if (nodes.length === 1) setSelected({ nodeId: nodes[0].id })
+              else setSelected(null)
+            }}
             deleteKeyCode={['Backspace', 'Delete']}
             fitView
           >

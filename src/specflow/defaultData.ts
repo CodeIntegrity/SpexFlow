@@ -59,7 +59,7 @@ export function defaultCanvas(): Canvas {
         status: 'idle',
         error: null,
         locked: false,
-        model: 'anthropic/claude-3.5-haiku',
+        model: 'x-ai/grok-4.1-fast',
         systemPrompt:
           'You are a senior software engineer. Given code context, propose a concrete implementation plan and the key files to edit.',
         query: 'Propose a plan to improve this authentication design.',
