@@ -1,41 +1,33 @@
 # SpecFlow
 
-SpecFlow loads local code repos and lets you run a small node-based workflow:
+English | [简体中文](README.zh.md)
 
+SpecFlow loads a local code repo and lets you run a small node-based workflow:
+
+- **Instruction** → produce/compose plain text input
+- **Code Search Conductor** → generate multiple complementary search queries (one per downstream Code Search node)
 - **Code Search** (Relace fast agentic search) → returns `{ explanation, files }`
-- **Context Converter** → turns file ranges into plain text context
-- **LLM** → takes plain text context + prompt and generates a spec / plan
+- **Context Converter** → turns file ranges into line-numbered text context
+- **LLM** → takes context + prompt and generates an output (spec/plan/etc.)
 
 ## Node Types & Connection Rules
 
-SpecFlow 包含 5 种节点类型，下表展示了它们之间的有效连接关系：
+| Source (output) ↓ \\ Target (input) → | instruction | code-search-conductor | code-search | context-converter | llm |
+|--------------------------------------|:-----------:|:---------------------:|:-----------:|:-----------------:|:---:|
+| **instruction**                      | ✅          | ✅                    | ✅          | ❌                | ✅  |
+| **code-search-conductor**            | ❌          | ❌                    | ✅          | ❌                | ❌  |
+| **code-search**                      | ❌          | ❌                    | ❌          | ✅                | ❌  |
+| **context-converter**                | ✅          | ✅                    | ✅          | ❌                | ✅  |
+| **llm**                              | ✅          | ✅                    | ✅          | ❌                | ✅  |
 
-| Source (输出) ↓ \ Target (输入) → | instruction | code-search-conductor | code-search | context-converter | llm |
-|----------------------------------|:-----------:|:---------------------:|:-----------:|:-----------------:|:---:|
-| **instruction**                  | ✅          | ✅                    | ✅          | ❌                | ✅  |
-| **code-search-conductor**        | ❌          | ❌                    | ✅          | ❌                | ❌  |
-| **code-search**                  | ❌          | ❌                    | ❌          | ✅                | ❌  |
-| **context-converter**            | ✅          | ✅                    | ✅          | ❌                | ✅  |
-| **llm**                          | ✅          | ✅                    | ✅          | ❌                | ✅  |
-
-### 连接规则说明
-
-- **instruction** → 输出纯文本，可连接到需要文本输入的节点
-- **code-search-conductor** → 仅输出到 `code-search` 节点，为其分配搜索查询
-- **code-search** → 仅输出到 `context-converter`，提供文件搜索结果
-- **context-converter** → 将搜索结果转为文本上下文，可连接到任何接受文本的节点
-- **llm** → 输出纯文本，可连接到需要文本输入的节点
-
-### 典型工作流
-
-```
-instruction → code-search-conductor → code-search → context-converter → llm
-```
-
-或简单版本：
+Typical workflows:
 
 ```
 instruction → code-search → context-converter → llm
+```
+
+```
+instruction → code-search-conductor → code-search → context-converter → llm
 ```
 
 ## Dev
@@ -44,13 +36,19 @@ instruction → code-search → context-converter → llm
 - Run: `pnpm dev` (web + server)
 - Health: `curl http://localhost:3001/api/health`
 
+## Keys & Settings
+
+- Code Search (Relace): set via **Settings** UI (recommended), or fallback `.apikey`
+- LLM: configure providers/models in **Settings** (OpenAI-compatible endpoints). If not configured, server falls back to OpenRouter via `.llmkey`
+- UI language: toggle in **Settings** (English / 中文)
+
 ## Warning: Huge Search Outputs
 
-The Code Search agent has a `bash` tool that may execute commands like `grep -r ... /repo`.
-If your `repoPath` includes build outputs (like `dist/`) or other generated/minified files, a single match can print **hundreds of KB** (minified bundles often have enormous single-line content). This can blow up message size and trigger "maximum context length" errors even on small repos.
+The Code Search agent can run `bash` tool calls that may execute commands like `grep -r ... /repo`.
+If your `repoPath` includes build outputs (like `dist/`) or other generated/minified files, a single match can print hundreds of KB (minified bundles often have enormous single-line content).
 
 Do this instead:
 
-- Point `repoPath` to your **source root** (e.g. `src/`) instead of the repo root when possible.
-- Avoid searching `dist/` and `node_modules/` when using `bash`-style grep.
-- Turn on **`debugMessages`** on the Code Search node to save the full raw message dump for inspection under `logs/relace-search-runs/<runId>.json`.
+- Point `repoPath` to your source root (e.g. `src/`) instead of the repo root when possible.
+- Avoid searching `dist/` and `node_modules/` when using grep-like searches.
+- Turn on `debugMessages` on the Code Search node to save the full raw message dump under `logs/relace-search-runs/<runId>.json`.

@@ -56,6 +56,7 @@ export function defaultAppData(): AppData {
       },
     ],
     apiSettings: defaultAPISettings(),
+    ui: { language: 'en' },
   }
 }
 

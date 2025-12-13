@@ -304,6 +304,13 @@ function normalizeAPISettings(raw: unknown): APISettings {
   return { codeSearch, llm }
 }
 
+function normalizeUISettings(raw: unknown): AppData['ui'] {
+  const obj = asRecord(raw)
+  const language = obj?.language
+  if (language === 'en' || language === 'zh') return { language }
+  return { language: 'en' }
+}
+
 function normalizeViewport(raw: unknown): Viewport {
   const obj = asRecord(raw)
   if (!obj) return { x: 0, y: 0, zoom: 1 }
@@ -351,11 +358,13 @@ function normalizeAppData(raw: unknown): AppData {
 
   const activeTabId = normalizeString(root.activeTabId) || (tabs[0]?.id ?? null)
   const apiSettings = normalizeAPISettings(root.apiSettings)
+  const ui = normalizeUISettings(root.ui)
   return {
     version: typeof root.version === 'number' ? root.version : 1,
     tabs,
     activeTabId,
     apiSettings,
+    ui,
   }
 }
 
@@ -428,6 +437,7 @@ export function defaultAppData(): AppData {
       },
     ],
     apiSettings: defaultAPISettings(),
+    ui: { language: 'en' },
   }
 }
 

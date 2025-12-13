@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react'
 import type { APISettings, LLMProvider, LLMModel } from '../types'
+import type { Language } from '../../../shared/appDataTypes'
+import { t } from '../i18n'
 
 type Props = {
   isOpen: boolean
   settings: APISettings
+  language: Language
+  onLanguageChange: (language: Language) => void
   onSave: (settings: APISettings) => void
   onClose: () => void
 }
 
-export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
+export function APISettingsModal({ isOpen, settings, language, onLanguageChange, onSave, onClose }: Props) {
   const [localSettings, setLocalSettings] = useState<APISettings>(settings)
   const [activeTab, setActiveTab] = useState<'codesearch' | 'llm'>('llm')
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
@@ -45,7 +49,7 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
 
     const newModel: LLMModel = {
       id: `${providerId}-model-${Date.now()}`,
-      name: 'New Model'
+      name: t(language, 'new_model')
     }
 
     updateProvider(providerId, {
@@ -76,7 +80,7 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
   function addProvider() {
     const newProvider: LLMProvider = {
       id: `provider-${Date.now()}`,
-      name: 'New Provider',
+      name: t(language, 'new_provider'),
       endpoint: '',
       apiKey: '',
       models: []
@@ -123,8 +127,20 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
     <div className="sfModalBackdrop" onClick={handleBackdropClick}>
       <div className="sfSettingsModal">
         <div className="sfModalHeader">
-          <span className="sfModalTitle">API Settings</span>
-          <button className="sfModalCloseBtn" onClick={onClose}>×</button>
+          <span className="sfModalTitle">{t(language, 'settings_title')}</span>
+          <button className="sfModalCloseBtn" onClick={onClose} title={t(language, 'close')}>×</button>
+        </div>
+
+        <div className="sfFieldGroup" style={{ padding: '0 16px' }}>
+          <label className="sfFieldLabel">{t(language, 'language')}</label>
+          <select
+            className="sfSelect"
+            value={language}
+            onChange={(e) => onLanguageChange(e.target.value as Language)}
+          >
+            <option value="en">{t(language, 'language_en')}</option>
+            <option value="zh">{t(language, 'language_zh')}</option>
+          </select>
         </div>
 
         {/* Tab Switcher */}
@@ -133,13 +149,13 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
             className={`sfSettingsTab ${activeTab === 'llm' ? 'active' : ''}`}
             onClick={() => setActiveTab('llm')}
           >
-            LLM Providers
+            {t(language, 'settings_tab_llm')}
           </button>
           <button
             className={`sfSettingsTab ${activeTab === 'codesearch' ? 'active' : ''}`}
             onClick={() => setActiveTab('codesearch')}
           >
-            Code Search
+            {t(language, 'settings_tab_codesearch')}
           </button>
         </div>
 
@@ -149,8 +165,8 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
               {/* Provider List */}
               <div className="sfProviderList">
                 <div className="sfProviderListHeader">
-                  <span>Providers</span>
-                  <button className="sfAddBtn" onClick={addProvider}>+ Add</button>
+                  <span>{t(language, 'providers')}</span>
+                  <button className="sfAddBtn" onClick={addProvider}>{t(language, 'add')}</button>
                 </div>
                 {localSettings.llm.providers.map(provider => (
                   <div
@@ -168,7 +184,7 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
               {selectedProvider && (
                 <div className="sfProviderDetails">
                   <div className="sfFieldGroup">
-                    <label className="sfFieldLabel">Provider Name</label>
+                    <label className="sfFieldLabel">{t(language, 'provider_name')}</label>
                     <input
                       className="sfInput"
                       value={selectedProvider.name}
@@ -178,7 +194,7 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
                   </div>
 
                   <div className="sfFieldGroup">
-                    <label className="sfFieldLabel">Endpoint URL</label>
+                    <label className="sfFieldLabel">{t(language, 'endpoint')}</label>
                     <input
                       className="sfInput"
                       value={selectedProvider.endpoint}
@@ -188,7 +204,7 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
                   </div>
 
                   <div className="sfFieldGroup">
-                    <label className="sfFieldLabel">API Key</label>
+                    <label className="sfFieldLabel">{t(language, 'api_key')}</label>
                     <input
                       className="sfInput"
                       type="password"
@@ -200,9 +216,9 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
 
                   <div className="sfModelsSection">
                     <div className="sfModelsSectionHeader">
-                      <span className="sfFieldLabel">Models</span>
+                      <span className="sfFieldLabel">{t(language, 'models')}</span>
                       <button className="sfAddBtn" onClick={() => addModel(selectedProvider.id)}>
-                        + Add Model
+                        {t(language, 'add_model')}
                       </button>
                     </div>
 
@@ -212,13 +228,13 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
                           className="sfInput sfModelIdInput"
                           value={model.id}
                           onChange={(e) => updateModel(selectedProvider.id, model.id, { id: e.target.value })}
-                          placeholder="Model ID"
+                          placeholder={t(language, 'model_id')}
                         />
                         <input
                           className="sfInput sfModelNameInput"
                           value={model.name}
                           onChange={(e) => updateModel(selectedProvider.id, model.id, { name: e.target.value })}
-                          placeholder="Display Name"
+                          placeholder={t(language, 'display_name')}
                         />
                         <button
                           className="sfRemoveBtn"
@@ -230,7 +246,7 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
                     ))}
 
                     {selectedProvider.models.length === 0 && (
-                      <div className="sfEmptyModels">No models configured</div>
+                      <div className="sfEmptyModels">{t(language, 'no_models_configured')}</div>
                     )}
                   </div>
 
@@ -238,15 +254,15 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
                     className="sfRemoveProviderBtn"
                     onClick={() => removeProvider(selectedProvider.id)}
                   >
-                    Remove Provider
+                    {t(language, 'remove_provider')}
                   </button>
                 </div>
               )}
 
               {!selectedProvider && localSettings.llm.providers.length === 0 && (
                 <div className="sfNoProviders">
-                  <p>No LLM providers configured.</p>
-                  <button className="sfAddBtn" onClick={addProvider}>+ Add Provider</button>
+                  <p>{t(language, 'no_providers_configured')}</p>
+                  <button className="sfAddBtn" onClick={addProvider}>{t(language, 'add_provider')}</button>
                 </div>
               )}
             </div>
@@ -255,7 +271,7 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
           {activeTab === 'codesearch' && (
             <div className="sfCodeSearchSettings">
               <div className="sfFieldGroup">
-                <label className="sfFieldLabel">Active Provider</label>
+                <label className="sfFieldLabel">{t(language, 'active_provider')}</label>
                 <select
                   className="sfSelect"
                   value={localSettings.codeSearch.activeProvider}
@@ -278,7 +294,7 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
                 if (!activeProvider) return null
                 return (
                   <div className="sfFieldGroup">
-                    <label className="sfFieldLabel">{activeProvider.name} API Key</label>
+                    <label className="sfFieldLabel">{activeProvider.name} {t(language, 'api_key_for_provider')}</label>
                     <input
                       className="sfInput"
                       type="password"
@@ -292,23 +308,22 @@ export function APISettingsModal({ isOpen, settings, onSave, onClose }: Props) {
                           )
                         }
                       }))}
-                      placeholder="Enter API key..."
+                      placeholder={t(language, 'enter_api_key_placeholder')}
                     />
                   </div>
                 )
               })()}
 
               <p className="sfSettingsNote">
-                Currently only Relace is supported for code search. If no API key is provided here,
-                the server will fall back to reading from the .apikey file.
+                {t(language, 'codesearch_note')}
               </p>
             </div>
           )}
         </div>
 
         <div className="sfModalFooter">
-          <button className="sfCancelBtn" onClick={onClose}>Cancel</button>
-          <button className="sfSaveBtn" onClick={handleSave}>Save Settings</button>
+          <button className="sfCancelBtn" onClick={onClose}>{t(language, 'cancel')}</button>
+          <button className="sfSaveBtn" onClick={handleSave}>{t(language, 'save_settings')}</button>
         </div>
       </div>
     </div>

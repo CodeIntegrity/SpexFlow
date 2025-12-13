@@ -17,6 +17,7 @@ import {
 } from './components/Icons'
 import { ChainManager } from './ChainManager'
 import { sameIdSet } from './utils'
+import { t } from './i18n'
 import {
   CodeSearchConductorNodeView,
   CodeSearchNodeView,
@@ -73,6 +74,8 @@ export function SpecFlowApp() {
   const [isDragSelecting, setIsDragSelecting] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
+  const language = appData.ui.language
+
   // Live viewport ref for immediate access (not debounced)
   const liveViewportRef = useRef<Viewport>(activeTab.canvas.viewport ?? { x: 0, y: 0, zoom: 1 })
 
@@ -109,6 +112,16 @@ export function SpecFlowApp() {
     setAppData(prev => ({
       ...prev,
       apiSettings: newSettings
+    }))
+  }, [setAppData])
+
+  const updateLanguage = useCallback((next: typeof language) => {
+    setAppData((prev) => ({
+      ...prev,
+      ui: {
+        ...prev.ui,
+        language: next,
+      },
     }))
   }, [setAppData])
 
@@ -174,7 +187,7 @@ export function SpecFlowApp() {
           <button
             className="sfSettingsBtn"
             onClick={() => setIsSettingsOpen(true)}
-            title="API Settings"
+            title={t(language, 'settings')}
           >
             <SettingsIcon />
           </button>
@@ -192,16 +205,16 @@ export function SpecFlowApp() {
           <div className="sfToolbar">
             <ToolbarButton
               icon={<HandIcon />}
-              label="Hand Mode"
-              description="Pan and navigate around the canvas by clicking and dragging"
+              label={t(language, 'toolbar_hand')}
+              description={t(language, 'toolbar_hand_desc')}
               shortcut="H"
               isActive={interactionMode === 'hand' && !spaceHeld}
               onClick={() => setInteractionMode('hand')}
             />
             <ToolbarButton
               icon={<SelectIcon />}
-              label="Select Mode"
-              description="Click to select nodes, or drag to create a selection box"
+              label={t(language, 'toolbar_select')}
+              description={t(language, 'toolbar_select_desc')}
               shortcut="V"
               isActive={interactionMode === 'select' && !spaceHeld}
               onClick={() => setInteractionMode('select')}
@@ -211,32 +224,32 @@ export function SpecFlowApp() {
 
             <ToolbarButton
               icon={<SearchIcon />}
-              label="Code Search"
-              description="Search through your codebase to find relevant code snippets"
+              label={t(language, 'toolbar_code_search')}
+              description={t(language, 'toolbar_code_search_desc')}
               onClick={() => addNode('code-search', liveViewportRef.current)}
             />
             <ToolbarButton
               icon={<ConductorIcon />}
-              label="Search Conductor"
-              description="Orchestrate multiple code searches in parallel"
+              label={t(language, 'toolbar_search_conductor')}
+              description={t(language, 'toolbar_search_conductor_desc')}
               onClick={() => addNode('code-search-conductor', liveViewportRef.current)}
             />
             <ToolbarButton
               icon={<DocumentIcon />}
-              label="Context Converter"
-              description="Convert code search results into formatted context for LLM"
+              label={t(language, 'toolbar_context')}
+              description={t(language, 'toolbar_context_desc')}
               onClick={() => addNode('context-converter', liveViewportRef.current)}
             />
             <ToolbarButton
               icon={<InstructionIcon />}
-              label="Instruction"
-              description="Add custom instructions or prompts to guide the workflow"
+              label={t(language, 'toolbar_instruction')}
+              description={t(language, 'toolbar_instruction_desc')}
               onClick={() => addNode('instruction', liveViewportRef.current)}
             />
             <ToolbarButton
               icon={<LLMIcon />}
-              label="LLM"
-              description="Process context through a language model to generate responses"
+              label={t(language, 'toolbar_llm')}
+              description={t(language, 'toolbar_llm_desc')}
               onClick={() => addNode('llm', liveViewportRef.current)}
             />
 
@@ -244,8 +257,8 @@ export function SpecFlowApp() {
 
             <ToolbarButton
               icon={<ResetIcon />}
-              label="Reset Canvas"
-              description="Clear all node outputs and reset the canvas to idle state"
+              label={t(language, 'toolbar_reset')}
+              description={t(language, 'toolbar_reset_desc')}
               onClick={resetActiveCanvasAll}
             />
           </div>
@@ -318,6 +331,8 @@ export function SpecFlowApp() {
       <APISettingsModal
         isOpen={isSettingsOpen}
         settings={appData.apiSettings}
+        language={language}
+        onLanguageChange={updateLanguage}
         onSave={updateAPISettings}
         onClose={() => setIsSettingsOpen(false)}
       />

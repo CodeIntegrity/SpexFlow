@@ -1,5 +1,11 @@
 export type NodeStatus = 'idle' | 'running' | 'success' | 'error'
 
+export type Language = 'en' | 'zh'
+
+export type UISettings = {
+  language: Language
+}
+
 export type BaseNodeData = {
   title: string
   status: NodeStatus
@@ -100,5 +106,5 @@ export type AppData<N, E> = {
   tabs: Tab<N, E>[]
   activeTabId: string | null
   apiSettings: APISettings
+  ui: UISettings
 }
-

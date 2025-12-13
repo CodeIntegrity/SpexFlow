@@ -45,6 +45,10 @@ export function useAppData() {
         if (!data.apiSettings) {
           data.apiSettings = defaultAPISettings()
         }
+        // Ensure ui exists (migration for old data)
+        if (!data.ui || typeof data.ui.language !== 'string') {
+          data.ui = { language: 'en' }
+        }
         // Migrate node data to ensure all properties exist (locked, muted, etc.)
         for (const tab of data.tabs) {
           tab.canvas.nodes = tab.canvas.nodes.map(migrateNodeData)
