@@ -22,6 +22,7 @@ function NodeShell(props: {
   subtitle: string
   selected: boolean
   locked: boolean
+  muted: boolean
 }) {
   const style = statusStyle(props.status)
   return (
@@ -34,7 +35,7 @@ function NodeShell(props: {
         padding: 10,
         fontSize: 12,
         boxShadow: props.selected ? '0 0 0 3px rgba(0, 110, 255, 0.25)' : 'none',
-        opacity: props.locked ? 0.92 : 1,
+        opacity: props.locked ? 0.92 : props.muted ? 0.6 : 1,
       }}
     >
       <Handle
@@ -49,7 +50,8 @@ function NodeShell(props: {
       />
       <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
         <span>{props.title}</span>
-        {props.locked ? <span style={{ fontSize: 12, opacity: 0.85 }}>🔒</span> : null}
+        {props.locked && <span style={{ fontSize: 12, opacity: 0.85 }}>🔒</span>}
+        {props.muted && <span style={{ fontSize: 12, opacity: 0.85 }}>🔇</span>}
       </div>
       <div style={{ opacity: 0.8, marginTop: 4 }}>{props.subtitle}</div>
       <div style={{ marginTop: 8, opacity: 0.7 }}>status: {props.status}</div>
@@ -69,6 +71,7 @@ export function CodeSearchNodeView({ data, selected }: NodeProps<CodeSearchNode>
       subtitle={subtitle}
       selected={selected}
       locked={!!data.locked}
+      muted={!!data.muted}
     />
   )
 }
@@ -84,6 +87,7 @@ export function ContextConverterNodeView({
       subtitle={data.fullFile ? 'full files' : 'line ranges'}
       selected={selected}
       locked={!!data.locked}
+      muted={!!data.muted}
     />
   )
 }
@@ -96,6 +100,7 @@ export function LLMNodeView({ data, selected }: NodeProps<LLMNode>) {
       subtitle={`model: ${data.model || '(unset)'}`}
       selected={selected}
       locked={!!data.locked}
+      muted={!!data.muted}
     />
   )
 }
@@ -112,6 +117,7 @@ export function InstructionNodeView({ data, selected }: NodeProps<InstructionNod
       subtitle={subtitle}
       selected={selected}
       locked={!!data.locked}
+      muted={!!data.muted}
     />
   )
 }
@@ -134,6 +140,7 @@ export function CodeSearchConductorNodeView({
       subtitle={subtitle}
       selected={selected}
       locked={!!data.locked}
+      muted={!!data.muted}
     />
   )
 }

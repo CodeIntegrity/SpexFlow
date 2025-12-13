@@ -32,6 +32,7 @@ export function defaultCanvas(): Canvas {
         status: 'idle',
         error: null,
         locked: false,
+        muted: false,
         repoPath: 'examples/example-repo',
         query: 'How is user authentication handled in this codebase?',
         debugMessages: false,
@@ -47,6 +48,7 @@ export function defaultCanvas(): Canvas {
         status: 'idle',
         error: null,
         locked: false,
+        muted: false,
         fullFile: true,
         output: null,
       },
@@ -60,6 +62,7 @@ export function defaultCanvas(): Canvas {
         status: 'idle',
         error: null,
         locked: false,
+        muted: false,
         model: 'x-ai/grok-4.1-fast',
         systemPrompt:
           'You are a senior software engineer. Given code context, propose a concrete implementation plan and the key files to edit.',

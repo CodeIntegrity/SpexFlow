@@ -7,6 +7,7 @@ export type BaseNodeData = {
   status: NodeStatus
   error: string | null
   locked: boolean
+  muted: boolean  // When true, node output is forced to empty
 }
 
 export type CodeSearchOutput = {

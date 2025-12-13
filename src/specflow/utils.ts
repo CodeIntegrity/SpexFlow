@@ -45,7 +45,7 @@ export function resetNodeRuntime(node: AppNode): AppNode {
 export function resetNodeRuntimeForPaste(node: AppNode): AppNode {
   return {
     ...node,
-    data: { ...node.data, status: 'idle' as const, error: null, locked: false, output: null },
+    data: { ...node.data, status: 'idle' as const, error: null, locked: false, muted: false, output: null },
   } as AppNode
 }
 

@@ -50,6 +50,15 @@ export function NodeSidebar({
           }
         />
 
+        {/* Mute toggle - inline */}
+        <InlineCheckbox
+          label="Muted"
+          checked={!!selectedNode.data.muted}
+          onChange={(checked) =>
+            patchSelectedNode((n) => ({ ...n, data: { ...n.data, muted: checked } }) as AppNode)
+          }
+        />
+
         <div className="sfSectionDivider" />
 
         {/* Settings Section */}

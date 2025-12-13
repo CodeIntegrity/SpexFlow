@@ -17,6 +17,43 @@ export type LocalOutput =
 
 export type RunMode = 'single' | 'chain'
 
+// Empty output definitions for muted nodes
+const EMPTY_STRING_OUTPUT: LocalOutput = { kind: 'string', value: '' }
+const EMPTY_CODE_SEARCH_OUTPUT: CodeSearchOutput = { explanation: '', files: {} }
+const EMPTY_CODE_SEARCH_LOCAL_OUTPUT: LocalOutput = { kind: 'code-search', value: EMPTY_CODE_SEARCH_OUTPUT, repoPath: '' }
+const EMPTY_CONDUCTOR_OUTPUT: Record<string, string> = {}
+const EMPTY_CONDUCTOR_LOCAL_OUTPUT: LocalOutput = { kind: 'conductor', value: EMPTY_CONDUCTOR_OUTPUT }
+
+function getEmptyOutput(nodeType: AppNode['type']): LocalOutput | null {
+  switch (nodeType) {
+    case 'instruction':
+    case 'context-converter':
+    case 'llm':
+      return EMPTY_STRING_OUTPUT
+    case 'code-search':
+      return EMPTY_CODE_SEARCH_LOCAL_OUTPUT
+    case 'code-search-conductor':
+      return EMPTY_CONDUCTOR_LOCAL_OUTPUT
+    default:
+      return null
+  }
+}
+
+function getEmptyNodeOutput(nodeType: AppNode['type']): unknown {
+  switch (nodeType) {
+    case 'instruction':
+    case 'context-converter':
+    case 'llm':
+      return ''
+    case 'code-search':
+      return EMPTY_CODE_SEARCH_OUTPUT
+    case 'code-search-conductor':
+      return EMPTY_CONDUCTOR_OUTPUT
+    default:
+      return null
+  }
+}
+
 export function useNodeRunner(
   appDataRef: React.RefObject<AppData>,
   patchNodeById: (nodeId: string, patch: (n: AppNode) => AppNode) => void,
@@ -40,11 +77,15 @@ export function useNodeRunner(
 
   const getStringOutput = useCallback(
     (nodeId: string, localOutputs?: Map<string, LocalOutput>): string => {
+      const snap = getActiveTab(appDataRef.current)
+      const n = snap.canvas.nodes.find((x) => x.id === nodeId)
+      
+      // Mute check: muted nodes always return empty
+      if (n?.data.muted) return ''
+
       const local = localOutputs?.get(nodeId)
       if (local?.kind === 'string') return local.value
 
-      const snap = getActiveTab(appDataRef.current)
-      const n = snap.canvas.nodes.find((x) => x.id === nodeId)
       if (!n) return ''
       if (n.type === 'context-converter' || n.type === 'instruction' || n.type === 'llm')
         return n.data.output ?? ''
@@ -55,11 +96,15 @@ export function useNodeRunner(
 
   const getConductorOutput = useCallback(
     (nodeId: string, localOutputs?: Map<string, LocalOutput>): Record<string, string> | null => {
+      const snap = getActiveTab(appDataRef.current)
+      const n = snap.canvas.nodes.find((x) => x.id === nodeId)
+      
+      // Mute check: muted nodes always return empty
+      if (n?.data.muted) return EMPTY_CONDUCTOR_OUTPUT
+
       const local = localOutputs?.get(nodeId)
       if (local?.kind === 'conductor') return local.value
 
-      const snap = getActiveTab(appDataRef.current)
-      const n = snap.canvas.nodes.find((x) => x.id === nodeId)
       if (!n) return null
       if (n.type === 'code-search-conductor') return n.data.output
       return null
@@ -69,11 +114,15 @@ export function useNodeRunner(
 
   const getCodeSearchOutput = useCallback(
     (nodeId: string, localOutputs?: Map<string, LocalOutput>): CodeSearchOutput | null => {
+      const snap = getActiveTab(appDataRef.current)
+      const n = snap.canvas.nodes.find((x) => x.id === nodeId)
+      
+      // Mute check: muted nodes always return empty
+      if (n?.data.muted) return EMPTY_CODE_SEARCH_OUTPUT
+
       const local = localOutputs?.get(nodeId)
       if (local?.kind === 'code-search') return local.value
 
-      const snap = getActiveTab(appDataRef.current)
-      const n = snap.canvas.nodes.find((x) => x.id === nodeId)
       if (!n) return null
       if (n.type === 'code-search') return n.data.output
       return null
@@ -83,11 +132,15 @@ export function useNodeRunner(
 
   const getCodeSearchRepoPath = useCallback(
     (nodeId: string, localOutputs?: Map<string, LocalOutput>): string => {
+      const snap = getActiveTab(appDataRef.current)
+      const n = snap.canvas.nodes.find((x) => x.id === nodeId)
+      
+      // Mute check: muted nodes always return empty
+      if (n?.data.muted) return ''
+
       const local = localOutputs?.get(nodeId)
       if (local?.kind === 'code-search' && typeof local.repoPath === 'string') return local.repoPath
 
-      const snap = getActiveTab(appDataRef.current)
-      const n = snap.canvas.nodes.find((x) => x.id === nodeId)
       if (!n) return ''
       if (n.type === 'code-search') return n.data.repoPath
       return ''
@@ -137,6 +190,25 @@ export function useNodeRunner(
         patchNodeById(nodeId, (n) => ({ ...n, data: { ...n.data, status: 'running', error: null } } as AppNode))
 
         try {
+          // Mute check: if node is muted, return empty output without executing
+          if (node.data.muted) {
+            const emptyOutput = getEmptyNodeOutput(node.type)
+
+            patchNodeById(nodeId, (n) => ({
+              ...n,
+              data: {
+                ...n.data,
+                output: emptyOutput,
+                status: 'success',
+                error: null,
+              },
+            } as AppNode))
+
+            const out = getEmptyOutput(node.type)
+            if (out) localOutputs?.set(nodeId, out)
+            return out
+          }
+
           if (node.type === 'instruction') {
             throwIfAborted(signal)
 
