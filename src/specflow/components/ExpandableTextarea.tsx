@@ -8,9 +8,24 @@ type Props = {
   disabled?: boolean
   rows?: number
   placeholder?: string
+  expandTitle?: string
+  doneLabel?: string
+  hintSave?: string
+  closeTitle?: string
 }
 
-export function ExpandableTextarea({ label, value, onChange, disabled, rows = 5, placeholder }: Props) {
+export function ExpandableTextarea({
+  label,
+  value,
+  onChange,
+  disabled,
+  rows = 5,
+  placeholder,
+  expandTitle = 'Open in larger editor',
+  doneLabel,
+  hintSave,
+  closeTitle,
+}: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   return (
@@ -22,7 +37,7 @@ export function ExpandableTextarea({ label, value, onChange, disabled, rows = 5,
             className="sfExpandBtn"
             onClick={() => setIsModalOpen(true)}
             disabled={disabled}
-            title="Open in larger editor"
+            title={expandTitle}
           >
             <ExpandIcon />
           </button>
@@ -45,6 +60,9 @@ export function ExpandableTextarea({ label, value, onChange, disabled, rows = 5,
         onClose={() => setIsModalOpen(false)}
         disabled={disabled}
         placeholder={placeholder}
+        doneLabel={doneLabel}
+        hintSave={hintSave}
+        closeTitle={closeTitle}
       />
     </>
   )

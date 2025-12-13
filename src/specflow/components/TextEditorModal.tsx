@@ -8,9 +8,23 @@ type Props = {
   onClose: () => void
   disabled?: boolean
   placeholder?: string
+  doneLabel?: string
+  hintSave?: string
+  closeTitle?: string
 }
 
-export function TextEditorModal({ isOpen, title, value, onChange, onClose, disabled, placeholder }: Props) {
+export function TextEditorModal({
+  isOpen,
+  title,
+  value,
+  onChange,
+  onClose,
+  disabled,
+  placeholder,
+  doneLabel = 'Done',
+  hintSave = 'Press Escape or click outside to save and close',
+  closeTitle = 'Close (Esc)',
+}: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [localValue, setLocalValue] = useState(value)
 
@@ -62,7 +76,7 @@ export function TextEditorModal({ isOpen, title, value, onChange, onClose, disab
       <div className="sfModalContent">
         <div className="sfModalHeader">
           <span className="sfModalTitle">{title}</span>
-          <button className="sfModalCloseBtn" onClick={handleSave} title="Close (Esc)">
+          <button className="sfModalCloseBtn" onClick={handleSave} title={closeTitle}>
             ×
           </button>
         </div>
@@ -75,9 +89,9 @@ export function TextEditorModal({ isOpen, title, value, onChange, onClose, disab
           placeholder={placeholder}
         />
         <div className="sfModalFooter">
-          <span className="sfModalHint">Press Escape or click outside to save and close</span>
+          <span className="sfModalHint">{hintSave}</span>
           <button className="sfModalSaveBtn" onClick={handleSave}>
-            Done
+            {doneLabel}
           </button>
         </div>
       </div>

@@ -33,6 +33,7 @@ export function NodeSidebar({
 }: Props) {
   const [isOutputModalOpen, setIsOutputModalOpen] = useState(false)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
+  const [showManualRepoRequired, setShowManualRepoRequired] = useState(false)
 
   const getOutputText = useCallback(() => {
     if (!selectedNode) return ''
@@ -50,6 +51,8 @@ export function NodeSidebar({
   const manualRepoPathTrimmed =
     selectedNode.type === 'manual-import' ? (selectedNode.data.repoPath ?? '').trim() : ''
 
+  const outputTitle = t(language, 'sidebar_output')
+
   return (
     <div className="sfSidebar">
       <div className="sfSidebarContent">
@@ -58,7 +61,7 @@ export function NodeSidebar({
 
         {/* Lock toggle - inline */}
         <InlineCheckbox
-          label="Locked"
+          label={t(language, 'sidebar_locked')}
           checked={isLocked}
           onChange={(checked) =>
             patchSelectedNode((n) => ({ ...n, data: { ...n.data, locked: checked } }) as AppNode)
@@ -67,7 +70,7 @@ export function NodeSidebar({
 
         {/* Mute toggle - inline */}
         <InlineCheckbox
-          label="Muted"
+          label={t(language, 'sidebar_muted')}
           checked={!!selectedNode.data.muted}
           onChange={(checked) =>
             patchSelectedNode((n) => ({ ...n, data: { ...n.data, muted: checked } }) as AppNode)
@@ -77,13 +80,13 @@ export function NodeSidebar({
         <div className="sfSectionDivider" />
 
         {/* Settings Section */}
-        <div className="sfSectionTitle">Settings</div>
+        <div className="sfSectionTitle">{t(language, 'sidebar_settings')}</div>
 
         {/* Code Search Node */}
         {selectedNode.type === 'code-search' && (
           <>
             <div className="sfFieldGroup">
-              <label className="sfFieldLabel">Repository Path</label>
+              <label className="sfFieldLabel">{t(language, 'field_repo_path')}</label>
               <input
                 className="sfInput"
                 value={selectedNode.data.repoPath ?? ''}
@@ -93,12 +96,12 @@ export function NodeSidebar({
                     n.type === 'code-search' ? { ...n, data: { ...n.data, repoPath: e.target.value } } : n,
                   )
                 }
-                placeholder="e.g., examples/example-repo"
+                placeholder={t(language, 'placeholder_repo_path')}
               />
             </div>
 
             <ExpandableTextarea
-              label="Query"
+              label={t(language, 'field_query')}
               value={selectedNode.data.query ?? ''}
               onChange={(value) =>
                 patchSelectedNode((n) =>
@@ -107,11 +110,15 @@ export function NodeSidebar({
               }
               disabled={isLocked}
               rows={5}
-              placeholder="Enter your search query..."
+              placeholder={t(language, 'placeholder_search_query')}
+              expandTitle={t(language, 'editor_expand')}
+              doneLabel={t(language, 'editor_done')}
+              hintSave={t(language, 'editor_hint_save')}
+              closeTitle={t(language, 'modal_close_esc')}
             />
 
             <InlineCheckbox
-              label="Debug Messages"
+              label={t(language, 'field_debug_messages')}
               checked={!!selectedNode.data.debugMessages}
               onChange={(checked) =>
                 patchSelectedNode((n) =>
@@ -137,16 +144,29 @@ export function NodeSidebar({
                     n.type === 'manual-import' ? { ...n, data: { ...n.data, repoPath: e.target.value } } : n,
                   )
                 }
-                placeholder="e.g., examples/example-repo"
+                placeholder={t(language, 'placeholder_repo_path')}
               />
+              {!isLocked && showManualRepoRequired && !manualRepoPathTrimmed ? (
+                <div style={{ marginTop: 6, fontSize: 12, color: '#b00020' }}>
+                  {t(language, 'manual_import_repo_required')}
+                </div>
+              ) : null}
             </div>
 
             <div className="sfFieldGroup">
               <label className="sfFieldLabel">{t(language, 'manual_import_selected_items')}</label>
               <button
                 className="sfAddBtn"
-                onClick={() => setIsPickerOpen(true)}
-                disabled={isLocked || !manualRepoPathTrimmed}
+                onClick={() => {
+                  if (isLocked) return
+                  if (!manualRepoPathTrimmed) {
+                    setShowManualRepoRequired(true)
+                    window.alert(t(language, 'manual_import_repo_required'))
+                    return
+                  }
+                  setIsPickerOpen(true)
+                }}
+                disabled={isLocked}
               >
                 {t(language, 'manual_import_pick')}
               </button>
@@ -215,10 +235,13 @@ export function NodeSidebar({
               }
               settings={apiSettings}
               disabled={isLocked}
+              label={t(language, 'field_model')}
+              selectPlaceholder={t(language, 'placeholder_select_model')}
+              noModelsPlaceholder={t(language, 'placeholder_no_models')}
             />
 
             <ExpandableTextarea
-              label="Query"
+              label={t(language, 'field_query')}
               value={selectedNode.data.query ?? ''}
               onChange={(value) =>
                 patchSelectedNode((n) =>
@@ -227,7 +250,11 @@ export function NodeSidebar({
               }
               disabled={isLocked}
               rows={5}
-              placeholder="Enter query, or leave empty to use predecessor output..."
+              placeholder={t(language, 'placeholder_conductor_query')}
+              expandTitle={t(language, 'editor_expand')}
+              doneLabel={t(language, 'editor_done')}
+              hintSave={t(language, 'editor_hint_save')}
+              closeTitle={t(language, 'modal_close_esc')}
             />
           </>
         )}
@@ -235,7 +262,7 @@ export function NodeSidebar({
         {/* Context Converter Node */}
         {selectedNode.type === 'context-converter' && (
           <InlineCheckbox
-            label="Full File Mode"
+            label={t(language, 'field_full_file_mode')}
             checked={!!selectedNode.data.fullFile}
             onChange={(checked) =>
               patchSelectedNode((n) =>
@@ -249,7 +276,7 @@ export function NodeSidebar({
         {/* Instruction Node */}
         {selectedNode.type === 'instruction' && (
           <ExpandableTextarea
-            label="Instruction Text"
+            label={t(language, 'field_instruction_text')}
             value={selectedNode.data.text ?? ''}
             onChange={(value) =>
               patchSelectedNode((n) =>
@@ -258,7 +285,11 @@ export function NodeSidebar({
             }
             disabled={isLocked}
             rows={8}
-            placeholder="Enter instruction text (or leave empty to use predecessor input)..."
+            placeholder={t(language, 'placeholder_instruction_text')}
+            expandTitle={t(language, 'editor_expand')}
+            doneLabel={t(language, 'editor_done')}
+            hintSave={t(language, 'editor_hint_save')}
+            closeTitle={t(language, 'modal_close_esc')}
           />
         )}
 
@@ -274,10 +305,13 @@ export function NodeSidebar({
               }
               settings={apiSettings}
               disabled={isLocked}
+              label={t(language, 'field_model')}
+              selectPlaceholder={t(language, 'placeholder_select_model')}
+              noModelsPlaceholder={t(language, 'placeholder_no_models')}
             />
 
             <ExpandableTextarea
-              label="System Prompt"
+              label={t(language, 'field_system_prompt')}
               value={selectedNode.data.systemPrompt ?? ''}
               onChange={(value) =>
                 patchSelectedNode((n) =>
@@ -286,11 +320,15 @@ export function NodeSidebar({
               }
               disabled={isLocked}
               rows={4}
-              placeholder="Optional system prompt..."
+              placeholder={t(language, 'placeholder_system_prompt')}
+              expandTitle={t(language, 'editor_expand')}
+              doneLabel={t(language, 'editor_done')}
+              hintSave={t(language, 'editor_hint_save')}
+              closeTitle={t(language, 'modal_close_esc')}
             />
 
             <ExpandableTextarea
-              label="Query"
+              label={t(language, 'field_query')}
               value={selectedNode.data.query ?? ''}
               onChange={(value) =>
                 patchSelectedNode((n) =>
@@ -299,7 +337,11 @@ export function NodeSidebar({
               }
               disabled={isLocked}
               rows={4}
-              placeholder="Enter query (or leave empty to use predecessor input)..."
+              placeholder={t(language, 'placeholder_llm_query')}
+              expandTitle={t(language, 'editor_expand')}
+              doneLabel={t(language, 'editor_done')}
+              hintSave={t(language, 'editor_hint_save')}
+              closeTitle={t(language, 'modal_close_esc')}
             />
           </>
         )}
@@ -307,37 +349,43 @@ export function NodeSidebar({
         <div className="sfSectionDivider" />
 
         {/* Actions Section */}
-        <div className="sfSectionTitle">Actions</div>
+        <div className="sfSectionTitle">{t(language, 'sidebar_actions')}</div>
         <div className="sfButtonGroup">
           <button onClick={() => runNode(selectedNode.id)} disabled={isLocked}>
-            Run
+            {t(language, 'sidebar_run')}
           </button>
           <button onClick={() => runFrom(selectedNode.id)} disabled={isLocked}>
-            Chain
+            {t(language, 'sidebar_chain')}
           </button>
           <button
             onClick={() => patchSelectedNode(resetNodeRuntime)}
             disabled={isLocked || selectedNode.data.status === 'running'}
           >
-            Reset
+            {t(language, 'sidebar_reset')}
           </button>
-          <button onClick={deleteSelectedNodes}>Delete</button>
+          <button onClick={deleteSelectedNodes}>{t(language, 'sidebar_delete')}</button>
         </div>
 
         {/* Output Section */}
         {selectedNode.data.output !== null && selectedNode.data.output !== undefined && (
           <div className="sfOutputSection">
             <div className="sfOutputHeader">
-              <span className="sfOutputTitle">Output</span>
+              <span className="sfOutputTitle">{outputTitle}</span>
               <div className="sfOutputActions">
                 <button
                   className="sfViewAllBtn"
                   onClick={() => setIsOutputModalOpen(true)}
-                  title="View full output"
+                  title={t(language, 'sidebar_view_full_output')}
                 >
-                  <ExpandIcon /> View All
+                  <ExpandIcon /> {t(language, 'sidebar_view_all')}
                 </button>
-                <CopyButton getText={getOutputText} />
+                <CopyButton
+                  getText={getOutputText}
+                  label={t(language, 'sidebar_copy')}
+                  copiedLabel={t(language, 'sidebar_copied')}
+                  titleCopy={t(language, 'sidebar_copy_title')}
+                  titleCopied={t(language, 'sidebar_copied_title')}
+                />
               </div>
             </div>
             <div className="sfOutputPreview">
@@ -351,15 +399,18 @@ export function NodeSidebar({
         {/* Output Viewer Modal */}
         <OutputViewerModal
           isOpen={isOutputModalOpen}
-          title={`${selectedNode.data.title} - Output`}
+          title={`${selectedNode.data.title} - ${outputTitle}`}
           content={getOutputText()}
           onClose={() => setIsOutputModalOpen(false)}
+          closeLabel={t(language, 'modal_close')}
+          hintClose={t(language, 'output_hint_close')}
+          closeTitle={t(language, 'modal_close_esc')}
         />
 
         {/* Error Display */}
         {selectedNode.data.error && (
           <div className="sfErrorSection">
-            <div className="sfErrorTitle">Error</div>
+            <div className="sfErrorTitle">{t(language, 'sidebar_error')}</div>
             <div className="sfErrorMessage">{selectedNode.data.error}</div>
           </div>
         )}

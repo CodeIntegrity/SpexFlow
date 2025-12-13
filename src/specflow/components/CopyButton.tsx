@@ -3,9 +3,18 @@ import { useState, useCallback } from 'react'
 type Props = {
   getText: () => string
   label?: string
+  copiedLabel?: string
+  titleCopy?: string
+  titleCopied?: string
 }
 
-export function CopyButton({ getText, label = 'Copy' }: Props) {
+export function CopyButton({
+  getText,
+  label = 'Copy',
+  copiedLabel = 'Copied',
+  titleCopy = 'Copy to clipboard',
+  titleCopied = 'Copied!',
+}: Props) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = useCallback(async () => {
@@ -25,11 +34,11 @@ export function CopyButton({ getText, label = 'Copy' }: Props) {
     <button
       className={`sfCopyBtn ${copied ? 'sfCopyBtnSuccess' : ''}`}
       onClick={handleCopy}
-      title={copied ? 'Copied!' : 'Copy to clipboard'}
+      title={copied ? titleCopied : titleCopy}
     >
       {copied ? (
         <>
-          <CheckIcon /> Copied
+          <CheckIcon /> {copiedLabel}
         </>
       ) : (
         <>

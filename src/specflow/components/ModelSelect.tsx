@@ -5,9 +5,20 @@ type Props = {
   onChange: (modelId: string) => void
   settings: APISettings
   disabled?: boolean
+  label?: string
+  selectPlaceholder?: string
+  noModelsPlaceholder?: string
 }
 
-export function ModelSelect({ value, onChange, settings, disabled }: Props) {
+export function ModelSelect({
+  value,
+  onChange,
+  settings,
+  disabled,
+  label = 'Model',
+  selectPlaceholder = 'Select a model...',
+  noModelsPlaceholder = 'No models configured - open Settings to add',
+}: Props) {
   // Flatten all models from all providers with provider context
   const allModels: Array<{ model: LLMModel; providerName: string }> = []
 
@@ -20,13 +31,13 @@ export function ModelSelect({ value, onChange, settings, disabled }: Props) {
   if (allModels.length === 0) {
     return (
       <div className="sfFieldGroup">
-        <label className="sfFieldLabel">Model</label>
+        <label className="sfFieldLabel">{label}</label>
         <input
           className="sfInput"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          placeholder="No models configured - open Settings to add"
+          placeholder={noModelsPlaceholder}
         />
       </div>
     )
@@ -37,14 +48,14 @@ export function ModelSelect({ value, onChange, settings, disabled }: Props) {
 
   return (
     <div className="sfFieldGroup">
-      <label className="sfFieldLabel">Model</label>
+      <label className="sfFieldLabel">{label}</label>
       <select
         className="sfSelect"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
       >
-        <option value="">Select a model...</option>
+        <option value="">{selectPlaceholder}</option>
         {providerGroups.map(provider => (
           <optgroup key={provider.id} label={provider.name}>
             {provider.models.map(model => (
