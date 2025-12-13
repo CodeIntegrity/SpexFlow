@@ -1,7 +1,44 @@
-import type { AppData, AppNode, Canvas } from './types'
+import type { APISettings, AppData, AppNode, Canvas } from './types'
 
 function nowIso() {
   return new Date().toISOString()
+}
+
+export function defaultAPISettings(): APISettings {
+  return {
+    codeSearch: {
+      activeProvider: 'relace',
+      providers: [
+        { id: 'relace', name: 'Relace', apiKey: '' }
+      ]
+    },
+    llm: {
+      providers: [
+        {
+          id: 'openai',
+          name: 'OpenAI',
+          endpoint: 'https://api.openai.com/v1',
+          apiKey: '',
+          models: [
+            { id: 'openai-gpt-4', name: 'GPT-4' },
+            { id: 'openai-gpt-4-turbo', name: 'GPT-4 Turbo' },
+            { id: 'openai-gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
+          ]
+        },
+        {
+          id: 'anthropic',
+          name: 'Anthropic',
+          endpoint: 'https://api.anthropic.com/v1',
+          apiKey: '',
+          models: [
+            { id: 'anthropic-claude-3-opus', name: 'Claude 3 Opus' },
+            { id: 'anthropic-claude-3-sonnet', name: 'Claude 3 Sonnet' },
+            { id: 'anthropic-claude-3-haiku', name: 'Claude 3 Haiku' },
+          ]
+        }
+      ]
+    }
+  }
 }
 
 export function defaultAppData(): AppData {
@@ -18,6 +55,7 @@ export function defaultAppData(): AppData {
         canvas,
       },
     ],
+    apiSettings: defaultAPISettings(),
   }
 }
 
@@ -78,5 +116,6 @@ export function defaultCanvas(): Canvas {
       { id: 'e_search_ctx', source: 'n_search', target: 'n_ctx' },
       { id: 'e_ctx_llm', source: 'n_ctx', target: 'n_llm' },
     ],
+    viewport: { x: 0, y: 0, zoom: 1 },
   }
 }

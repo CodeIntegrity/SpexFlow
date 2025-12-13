@@ -2,7 +2,7 @@ import express from 'express'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { runRelaceSearch } from './relaceSearch.js'
-import { loadAppData, saveAppData } from './appData.js'
+import { loadAppData, saveAppData, getCodeSearchApiKey } from './appData.js'
 import { buildRepoContext } from './repoContext.js'
 import { runOpenRouterChat } from './openRouter.js'
 import { appendSearchRunLog, readRecentSearchRunLogs, readSearchRunDump } from './searchRunLog.js'
@@ -35,7 +35,9 @@ app.post('/api/relace-search', async (req, res) => {
       ? repoPathRaw
       : path.join(process.cwd(), repoPathRaw)
 
-    const apiKey = await readApiKeyFromDotfile()
+    // Try to get API key from persisted settings first, fall back to .apikey file
+    const settingsApiKey = await getCodeSearchApiKey()
+    const apiKey = settingsApiKey ?? await readApiKeyFromDotfile()
     const result = await runRelaceSearch({
       apiKey,
       repoRoot,

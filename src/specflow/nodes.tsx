@@ -93,11 +93,16 @@ export function ContextConverterNodeView({
 }
 
 export function LLMNodeView({ data, selected }: NodeProps<LLMNode>) {
+  const hasQuery = !!data.query?.trim()
+  const subtitle = hasQuery
+    ? `model: ${data.model || '(unset)'}`
+    : `model: ${data.model || '(unset)'} • (accepts input)`
+
   return (
     <NodeShell
       title={data.title}
       status={data.status}
-      subtitle={`model: ${data.model || '(unset)'}`}
+      subtitle={subtitle}
       selected={selected}
       locked={!!data.locked}
       muted={!!data.muted}
@@ -127,12 +132,12 @@ export function CodeSearchConductorNodeView({
   selected,
 }: NodeProps<CodeSearchConductorNode>) {
   const outputsCount = data.output ? Object.keys(data.output).length : 0
-  const q = (data.query || '').trim()
+  const hasQuery = !!data.query?.trim()
   const subtitle = outputsCount
     ? `${outputsCount} queries`
-    : q
-      ? `"${q.slice(0, 24)}${q.length > 24 ? '…' : ''}"`
-      : '(no query)'
+    : hasQuery
+      ? `model: ${data.model || '(unset)'}`
+      : `model: ${data.model || '(unset)'} • (accepts input)`
   return (
     <NodeShell
       title={data.title}

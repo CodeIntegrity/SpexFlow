@@ -25,7 +25,11 @@ export async function runCodeSearch(args: { repoPath: string; query: string; deb
   const res = await fetch('/api/relace-search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(args),
+    body: JSON.stringify({
+      repoPath: args.repoPath,
+      query: args.query,
+      debugMessages: args.debugMessages,
+    }),
     signal: args.signal,
   })
   const text = await res.text()

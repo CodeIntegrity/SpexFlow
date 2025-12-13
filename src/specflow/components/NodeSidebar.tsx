@@ -1,9 +1,11 @@
-import { useCallback } from 'react'
-import type { AppNode } from '../types'
+import { useCallback, useState } from 'react'
+import type { AppNode, APISettings } from '../types'
 import { resetNodeRuntime } from '../utils'
 import { ExpandableTextarea } from './ExpandableTextarea'
 import { InlineCheckbox } from './InlineCheckbox'
 import { CopyButton } from './CopyButton'
+import { ModelSelect } from './ModelSelect'
+import { OutputViewerModal } from './OutputViewerModal'
 
 type Props = {
   selectedNode: AppNode | null
@@ -12,6 +14,7 @@ type Props = {
   deleteSelectedNodes: () => void
   runNode: (nodeId: string) => void
   runFrom: (nodeId: string) => void
+  apiSettings: APISettings
 }
 
 export function NodeSidebar({
@@ -21,19 +24,23 @@ export function NodeSidebar({
   deleteSelectedNodes,
   runNode,
   runFrom,
+  apiSettings,
 }: Props) {
-  // Multi-select: don't show sidebar (use MultiSelectInfo instead)
-  if (multiSelectCount > 1) return null
-  if (!selectedNode) return null
-
-  const isLocked = !!selectedNode.data.locked
+  const [isOutputModalOpen, setIsOutputModalOpen] = useState(false)
 
   const getOutputText = useCallback(() => {
+    if (!selectedNode) return ''
     if (selectedNode.type === 'code-search' || selectedNode.type === 'code-search-conductor') {
       return selectedNode.data.output ? JSON.stringify(selectedNode.data.output, null, 2) : ''
     }
     return selectedNode.data.output ?? ''
   }, [selectedNode])
+
+  // Multi-select: don't show sidebar (use MultiSelectInfo instead)
+  if (multiSelectCount > 1) return null
+  if (!selectedNode) return null
+
+  const isLocked = !!selectedNode.data.locked
 
   return (
     <div className="sfSidebar">
@@ -110,20 +117,31 @@ export function NodeSidebar({
 
         {/* Code Search Conductor Node */}
         {selectedNode.type === 'code-search-conductor' && (
-          <div className="sfFieldGroup">
-            <label className="sfFieldLabel">Model</label>
-            <input
-              className="sfInput"
+          <>
+            <ModelSelect
               value={selectedNode.data.model ?? ''}
-              disabled={isLocked}
-              onChange={(e) =>
+              onChange={(modelId) =>
                 patchSelectedNode((n) =>
-                  n.type === 'code-search-conductor' ? { ...n, data: { ...n.data, model: e.target.value } } : n,
+                  n.type === 'code-search-conductor' ? { ...n, data: { ...n.data, model: modelId } } : n,
                 )
               }
-              placeholder="e.g., gpt-4"
+              settings={apiSettings}
+              disabled={isLocked}
             />
-          </div>
+
+            <ExpandableTextarea
+              label="Query"
+              value={selectedNode.data.query ?? ''}
+              onChange={(value) =>
+                patchSelectedNode((n) =>
+                  n.type === 'code-search-conductor' ? { ...n, data: { ...n.data, query: value } } : n,
+                )
+              }
+              disabled={isLocked}
+              rows={5}
+              placeholder="Enter query, or leave empty to use predecessor output..."
+            />
+          </>
         )}
 
         {/* Context Converter Node */}
@@ -159,20 +177,16 @@ export function NodeSidebar({
         {/* LLM Node */}
         {selectedNode.type === 'llm' && (
           <>
-            <div className="sfFieldGroup">
-              <label className="sfFieldLabel">Model</label>
-              <input
-                className="sfInput"
-                value={selectedNode.data.model ?? ''}
-                disabled={isLocked}
-                onChange={(e) =>
-                  patchSelectedNode((n) =>
-                    n.type === 'llm' ? { ...n, data: { ...n.data, model: e.target.value } } : n,
-                  )
-                }
-                placeholder="e.g., gpt-4"
-              />
-            </div>
+            <ModelSelect
+              value={selectedNode.data.model ?? ''}
+              onChange={(modelId) =>
+                patchSelectedNode((n) =>
+                  n.type === 'llm' ? { ...n, data: { ...n.data, model: modelId } } : n,
+                )
+              }
+              settings={apiSettings}
+              disabled={isLocked}
+            />
 
             <ExpandableTextarea
               label="System Prompt"
@@ -184,7 +198,7 @@ export function NodeSidebar({
               }
               disabled={isLocked}
               rows={4}
-              placeholder="Enter system prompt..."
+              placeholder="Optional system prompt..."
             />
 
             <ExpandableTextarea
@@ -227,7 +241,16 @@ export function NodeSidebar({
           <div className="sfOutputSection">
             <div className="sfOutputHeader">
               <span className="sfOutputTitle">Output</span>
-              <CopyButton getText={getOutputText} />
+              <div className="sfOutputActions">
+                <button
+                  className="sfViewAllBtn"
+                  onClick={() => setIsOutputModalOpen(true)}
+                  title="View full output"
+                >
+                  <ExpandIcon /> View All
+                </button>
+                <CopyButton getText={getOutputText} />
+              </div>
             </div>
             <div className="sfOutputPreview">
               {typeof selectedNode.data.output === 'string'
@@ -236,6 +259,14 @@ export function NodeSidebar({
             </div>
           </div>
         )}
+
+        {/* Output Viewer Modal */}
+        <OutputViewerModal
+          isOpen={isOutputModalOpen}
+          title={`${selectedNode.data.title} - Output`}
+          content={getOutputText()}
+          onClose={() => setIsOutputModalOpen(false)}
+        />
 
         {/* Error Display */}
         {selectedNode.data.error && (
@@ -246,5 +277,13 @@ export function NodeSidebar({
         )}
       </div>
     </div>
+  )
+}
+
+function ExpandIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+    </svg>
   )
 }

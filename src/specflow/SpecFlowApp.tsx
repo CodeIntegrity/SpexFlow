@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
-import { ReactFlow, Background, Controls } from '@xyflow/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ReactFlow, Background, MiniMap } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
 import { useAppData, useNodeRunner, useChainRunner, useClipboard, useHotkeys } from './hooks'
-import { NodeSidebar, ToolbarButton, MultiSelectInfo } from './components'
+import { NodeSidebar, ToolbarButton, MultiSelectInfo, APISettingsModal, SettingsIcon } from './components'
+import type { APISettings, Viewport } from './types'
 import {
   HandIcon,
   SelectIcon,
@@ -41,6 +42,7 @@ export function SpecFlowApp() {
     closeTab,
     deleteSelectedNodes,
     updateActiveCanvas,
+    updateActiveViewport,
     onNodesChange,
     onEdgesChange,
     onConnect,
@@ -69,6 +71,46 @@ export function SpecFlowApp() {
   const { interactionMode, setInteractionMode, spaceHeld } = useHotkeys(copySelectedNodes, pasteClipboard)
 
   const [isDragSelecting, setIsDragSelecting] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  // Live viewport ref for immediate access (not debounced)
+  const liveViewportRef = useRef<Viewport>(activeTab.canvas.viewport ?? { x: 0, y: 0, zoom: 1 })
+
+  // Debounced viewport save handler
+  const viewportTimerRef = useRef<number | null>(null)
+
+  const handleViewportChange = useCallback((viewport: Viewport) => {
+    // Update live ref immediately
+    liveViewportRef.current = viewport
+    // Debounce the save
+    if (viewportTimerRef.current) {
+      window.clearTimeout(viewportTimerRef.current)
+    }
+    viewportTimerRef.current = window.setTimeout(() => {
+      updateActiveViewport(viewport)
+    }, 300)  // Debounce 300ms to avoid too frequent saves
+  }, [updateActiveViewport])
+
+  // Sync liveViewportRef when switching tabs
+  useEffect(() => {
+    liveViewportRef.current = activeTab.canvas.viewport ?? { x: 0, y: 0, zoom: 1 }
+  }, [activeTab.id])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (viewportTimerRef.current) {
+        window.clearTimeout(viewportTimerRef.current)
+      }
+    }
+  }, [])
+
+  const updateAPISettings = useCallback((newSettings: APISettings) => {
+    setAppData(prev => ({
+      ...prev,
+      apiSettings: newSettings
+    }))
+  }, [setAppData])
 
   const nodeTypes = useMemo(
     () => ({
@@ -106,24 +148,37 @@ export function SpecFlowApp() {
                 e.stopPropagation()
                 renameTab(t.id)
               }}
-              title="Double-click to rename"
+              title={t.name}
             >
               {t.name}
             </span>
-            <button
-              className="sfTabClose"
-              onClick={(e) => {
-                e.stopPropagation()
-                closeTab(t.id)
-              }}
-            >
-              ×
-            </button>
+            {appData.tabs.length > 1 && (
+              <button
+                className="sfTabClose"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  closeTab(t.id)
+                }}
+                title="Close tab"
+              >
+                ×
+              </button>
+            )}
           </div>
         ))}
-        <button className="sfTabAdd" onClick={addTab}>
-          +
-        </button>
+
+        <div className="sfTabActions">
+          <button className="sfTabAdd" onClick={addTab} title="New canvas">
+            +
+          </button>
+          <button
+            className="sfSettingsBtn"
+            onClick={() => setIsSettingsOpen(true)}
+            title="API Settings"
+          >
+            <SettingsIcon />
+          </button>
+        </div>
       </div>
 
       {/* Main body */}
@@ -158,31 +213,31 @@ export function SpecFlowApp() {
               icon={<SearchIcon />}
               label="Code Search"
               description="Search through your codebase to find relevant code snippets"
-              onClick={() => addNode('code-search')}
+              onClick={() => addNode('code-search', liveViewportRef.current)}
             />
             <ToolbarButton
               icon={<ConductorIcon />}
               label="Search Conductor"
               description="Orchestrate multiple code searches in parallel"
-              onClick={() => addNode('code-search-conductor')}
+              onClick={() => addNode('code-search-conductor', liveViewportRef.current)}
             />
             <ToolbarButton
               icon={<DocumentIcon />}
               label="Context Converter"
               description="Convert code search results into formatted context for LLM"
-              onClick={() => addNode('context-converter')}
+              onClick={() => addNode('context-converter', liveViewportRef.current)}
             />
             <ToolbarButton
               icon={<InstructionIcon />}
               label="Instruction"
               description="Add custom instructions or prompts to guide the workflow"
-              onClick={() => addNode('instruction')}
+              onClick={() => addNode('instruction', liveViewportRef.current)}
             />
             <ToolbarButton
               icon={<LLMIcon />}
               label="LLM"
               description="Process context through a language model to generate responses"
-              onClick={() => addNode('llm')}
+              onClick={() => addNode('llm', liveViewportRef.current)}
             />
 
             <div className="sfToolbarSpacer" />
@@ -197,6 +252,7 @@ export function SpecFlowApp() {
 
           {/* React Flow canvas */}
           <ReactFlow
+            key={activeTab.id}
             nodes={rfNodes}
             edges={activeTab.canvas.edges}
             onNodesChange={onNodesChange}
@@ -219,10 +275,18 @@ export function SpecFlowApp() {
               })
             }}
             deleteKeyCode={['Backspace', 'Delete']}
-            fitView
+            defaultViewport={activeTab.canvas.viewport}
+            onViewportChange={handleViewportChange}
+            minZoom={0.1}
           >
             <Background />
-            <Controls />
+            <MiniMap
+              className="sfMiniMap"
+              pannable
+              zoomable
+              nodeStrokeWidth={3}
+              position="bottom-left"
+            />
           </ReactFlow>
         </div>
 
@@ -245,9 +309,18 @@ export function SpecFlowApp() {
             deleteSelectedNodes={deleteSelectedNodes}
             runNode={(nodeId) => runNode(nodeId).catch(() => {})}
             runFrom={(nodeId) => runFrom(nodeId).catch(() => {})}
+            apiSettings={appData.apiSettings}
           />
         )}
       </div>
+
+      {/* API Settings Modal */}
+      <APISettingsModal
+        isOpen={isSettingsOpen}
+        settings={appData.apiSettings}
+        onSave={updateAPISettings}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   )
 }

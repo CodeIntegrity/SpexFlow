@@ -60,9 +60,16 @@ export type AppNode =
   | CodeSearchConductorNode
   | LLMNode
 
+export type Viewport = {
+  x: number
+  y: number
+  zoom: number
+}
+
 export type Canvas = {
   nodes: AppNode[]
   edges: Edge[]
+  viewport: Viewport
 }
 
 export type Tab = {
@@ -76,6 +83,38 @@ export type AppData = {
   version: number
   tabs: Tab[]
   activeTabId: string | null
+  apiSettings: APISettings
+}
+
+// ===== API Settings Types =====
+
+export type LLMModel = {
+  id: string      // Unique identifier (e.g., "openai-gpt4", "anthropic-claude-3")
+  name: string    // Display name (e.g., "GPT-4", "Claude 3 Opus")
+}
+
+export type LLMProvider = {
+  id: string           // Unique provider ID (e.g., "openai", "anthropic", "ollama")
+  name: string         // Display name (e.g., "OpenAI", "Anthropic")
+  endpoint: string     // API endpoint URL
+  apiKey: string       // API key (stored in settings)
+  models: LLMModel[]   // Available models for this provider
+}
+
+export type CodeSearchProvider = {
+  id: string
+  name: string
+  apiKey: string
+}
+
+export type APISettings = {
+  codeSearch: {
+    activeProvider: string  // Currently only "relace"
+    providers: CodeSearchProvider[]
+  }
+  llm: {
+    providers: LLMProvider[]
+  }
 }
 
 export type ChainRunStatus = 'running' | 'completed' | 'cancelled' | 'error'

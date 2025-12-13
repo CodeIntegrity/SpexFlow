@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Edge } from '@xyflow/react'
 import { addEdge, applyEdgeChanges, applyNodeChanges } from '@xyflow/react'
 import type { Connection, EdgeChange, NodeChange } from '@xyflow/react'
-import { defaultAppData, defaultCanvas } from '../defaultData'
-import type { AppData, AppNode, Tab } from '../types'
+import { defaultAppData, defaultCanvas, defaultAPISettings } from '../defaultData'
+import type { AppData, AppNode, Tab, Viewport } from '../types'
 import { fetchAppData, saveAppData } from '../api'
-import { getActiveTab, isValidConnection, uid, updateNode } from '../utils'
+import { getActiveTab, isValidConnection, migrateNodeData, uid, updateNode } from '../utils'
 
 export type Selected = { nodeIds: string[]; primaryId: string } | null
 
@@ -41,6 +41,18 @@ export function useAppData() {
     fetchAppData()
       .then((data) => {
         if (!alive) return
+        // Ensure apiSettings exists (migration for old data)
+        if (!data.apiSettings) {
+          data.apiSettings = defaultAPISettings()
+        }
+        // Migrate node data to ensure all properties exist (locked, muted, etc.)
+        for (const tab of data.tabs) {
+          tab.canvas.nodes = tab.canvas.nodes.map(migrateNodeData)
+          // Ensure viewport exists (migration for old data)
+          if (!tab.canvas.viewport) {
+            tab.canvas.viewport = { x: 0, y: 0, zoom: 1 }
+          }
+        }
         setAppData(data)
       })
       .catch((e) => {
@@ -68,6 +80,22 @@ export function useAppData() {
   const updateActiveCanvas = useCallback((patch: (tab: Tab) => Tab) => {
     setAppData((d) => {
       const nextTabs = d.tabs.map((t) => (t.id === d.activeTabId ? patch(t) : t))
+      return { ...d, tabs: nextTabs }
+    })
+  }, [])
+
+  const updateActiveViewport = useCallback((viewport: Viewport) => {
+    setAppData((d) => {
+      const nextTabs = d.tabs.map((t) => {
+        if (t.id !== d.activeTabId) return t
+        return {
+          ...t,
+          canvas: {
+            ...t.canvas,
+            viewport,
+          },
+        }
+      })
       return { ...d, tabs: nextTabs }
     })
   }, [])
@@ -116,6 +144,7 @@ export function useAppData() {
     updateActiveCanvas((t) => ({
       ...t,
       canvas: {
+        ...t.canvas,
         nodes: t.canvas.nodes.filter((n) => !selectedSet.has(n.id)),
         edges: t.canvas.edges.filter((e) => !selectedSet.has(e.source) && !selectedSet.has(e.target)),
       },
@@ -165,12 +194,18 @@ export function useAppData() {
   )
 
   const addNode = useCallback(
-    (type: AppNode['type']) => {
+    (type: AppNode['type'], liveViewport?: Viewport) => {
       const id = uid('n')
+      // Place new node at viewport center (use live viewport if provided, else fall back to saved)
+      const viewport = liveViewport ?? activeTab.canvas.viewport ?? { x: 0, y: 0, zoom: 1 }
+      const centerX = (-viewport.x + 400) / viewport.zoom
+      const centerY = (-viewport.y + 300) / viewport.zoom
+      // Add small offset based on existing node count to avoid stacking
+      const offset = (activeTab.canvas.nodes.length % 5) * 30
       const base = {
         id,
         type,
-        position: { x: 80, y: 80 + activeTab.canvas.nodes.length * 40 },
+        position: { x: centerX + offset, y: centerY + offset },
       } as const
 
       let node: AppNode
@@ -304,6 +339,7 @@ export function useAppData() {
     closeTab,
     deleteSelectedNodes,
     updateActiveCanvas,
+    updateActiveViewport,
     onNodesChange,
     onEdgesChange,
     onConnect,

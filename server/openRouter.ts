@@ -1,5 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { getLLMProviderByModel } from './appData.js'
+
+const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
 
 async function readKeyFromDotfile() {
   const keyPath = path.join(process.cwd(), '.llmkey')
@@ -13,17 +16,46 @@ export async function runOpenRouterChat(args: {
   systemPrompt: string
   userPrompt: string
 }) {
-  const apiKey = await readKeyFromDotfile()
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  // Try to get provider config from settings first
+  const providerConfig = await getLLMProviderByModel(args.model)
+  
+  let endpoint: string
+  let apiKey: string
+  let modelId: string
+  
+  if (providerConfig) {
+    // Use provider config from settings
+    endpoint = providerConfig.endpoint
+    apiKey = providerConfig.apiKey
+    modelId = args.model
+  } else {
+    // Fall back to OpenRouter with .llmkey file
+    endpoint = OPENROUTER_ENDPOINT
+    apiKey = await readKeyFromDotfile()
+    modelId = args.model
+  }
+
+  // Ensure endpoint ends with /chat/completions for OpenAI-compatible APIs
+  const chatEndpoint = endpoint.endsWith('/chat/completions')
+    ? endpoint
+    : endpoint.replace(/\/?$/, '/chat/completions')
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+  }
+
+  // Add OpenRouter-specific headers only for OpenRouter
+  if (endpoint === OPENROUTER_ENDPOINT) {
+    headers['HTTP-Referer'] = 'http://localhost:5173'
+    headers['X-Title'] = 'SpecFlow'
+  }
+
+  const res = await fetch(chatEndpoint, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'http://localhost:5173',
-      'X-Title': 'SpecFlow',
-    },
+    headers,
     body: JSON.stringify({
-      model: args.model,
+      model: modelId,
       messages: [
         { role: 'system', content: args.systemPrompt },
         { role: 'user', content: args.userPrompt },
@@ -33,12 +65,12 @@ export async function runOpenRouterChat(args: {
 
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    throw new Error(`OpenRouter error: ${JSON.stringify(data)}`)
+    throw new Error(`LLM API error: ${JSON.stringify(data)}`)
   }
 
   const content = data?.choices?.[0]?.message?.content
   if (typeof content !== 'string') {
-    throw new Error(`Unexpected OpenRouter response: ${JSON.stringify(data)}`)
+    throw new Error(`Unexpected LLM API response: ${JSON.stringify(data)}`)
   }
   return content
 }

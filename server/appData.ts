@@ -8,6 +8,7 @@ export type BaseNodeData = {
   status: NodeStatus
   error: string | null
   locked: boolean
+  muted: boolean
 }
 
 export type CodeSearchOutput = {
@@ -85,7 +86,13 @@ export type AppEdge = {
   target: string
 }
 
-export type Canvas = { nodes: AppNode[]; edges: AppEdge[] }
+export type Viewport = {
+  x: number
+  y: number
+  zoom: number
+}
+
+export type Canvas = { nodes: AppNode[]; edges: AppEdge[]; viewport: Viewport }
 
 export type Tab = {
   id: string
@@ -94,10 +101,42 @@ export type Tab = {
   canvas: Canvas
 }
 
+// ===== API Settings Types =====
+
+export type LLMModel = {
+  id: string
+  name: string
+}
+
+export type LLMProvider = {
+  id: string
+  name: string
+  endpoint: string
+  apiKey: string
+  models: LLMModel[]
+}
+
+export type CodeSearchProvider = {
+  id: string
+  name: string
+  apiKey: string
+}
+
+export type APISettings = {
+  codeSearch: {
+    activeProvider: string
+    providers: CodeSearchProvider[]
+  }
+  llm: {
+    providers: LLMProvider[]
+  }
+}
+
 export type AppData = {
   version: number
   tabs: Tab[]
   activeTabId: string | null
+  apiSettings: APISettings
 }
 
 function normalizeStatus(status: unknown): NodeStatus {
@@ -146,6 +185,7 @@ function normalizeNode(raw: unknown): AppNode | null {
     status: normalizeStatus(data.status),
     error: typeof data.error === 'string' ? data.error : null,
     locked: normalizeBool(data.locked, false),
+    muted: normalizeBool(data.muted, false),
   }
 
   if (type === 'code-search') {
@@ -233,6 +273,128 @@ function normalizeNode(raw: unknown): AppNode | null {
   }
 }
 
+function defaultAPISettings(): APISettings {
+  return {
+    codeSearch: {
+      activeProvider: 'relace',
+      providers: [
+        { id: 'relace', name: 'Relace', apiKey: '' }
+      ]
+    },
+    llm: {
+      providers: [
+        {
+          id: 'openai',
+          name: 'OpenAI',
+          endpoint: 'https://api.openai.com/v1',
+          apiKey: '',
+          models: [
+            { id: 'openai-gpt-4', name: 'GPT-4' },
+            { id: 'openai-gpt-4-turbo', name: 'GPT-4 Turbo' },
+            { id: 'openai-gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
+          ]
+        },
+        {
+          id: 'anthropic',
+          name: 'Anthropic',
+          endpoint: 'https://api.anthropic.com/v1',
+          apiKey: '',
+          models: [
+            { id: 'anthropic-claude-3-opus', name: 'Claude 3 Opus' },
+            { id: 'anthropic-claude-3-sonnet', name: 'Claude 3 Sonnet' },
+            { id: 'anthropic-claude-3-haiku', name: 'Claude 3 Haiku' },
+          ]
+        }
+      ]
+    }
+  }
+}
+
+function normalizeAPISettings(raw: unknown): APISettings {
+  const defaults = defaultAPISettings()
+  const obj = asRecord(raw)
+  if (!obj) return defaults
+
+  const codeSearchRaw = asRecord(obj.codeSearch)
+  const llmRaw = asRecord(obj.llm)
+
+  // Normalize codeSearch
+  const codeSearch = (() => {
+    if (!codeSearchRaw) return defaults.codeSearch
+    const activeProvider = normalizeString(codeSearchRaw.activeProvider, 'relace')
+    const providersRaw = Array.isArray(codeSearchRaw.providers) ? codeSearchRaw.providers : []
+    const providers: CodeSearchProvider[] = providersRaw
+      .map((p: unknown) => {
+        const pObj = asRecord(p)
+        if (!pObj) return null
+        const id = normalizeString(pObj.id)
+        if (!id) return null
+        return {
+          id,
+          name: normalizeString(pObj.name, id),
+          apiKey: normalizeString(pObj.apiKey),
+        }
+      })
+      .filter(isNonNull)
+    
+    return {
+      activeProvider,
+      providers: providers.length > 0 ? providers : defaults.codeSearch.providers,
+    }
+  })()
+
+  // Normalize llm
+  const llm = (() => {
+    if (!llmRaw) return defaults.llm
+    const providersRaw = Array.isArray(llmRaw.providers) ? llmRaw.providers : []
+    const providers: LLMProvider[] = providersRaw
+      .map((p: unknown) => {
+        const pObj = asRecord(p)
+        if (!pObj) return null
+        const id = normalizeString(pObj.id)
+        if (!id) return null
+        const modelsRaw = Array.isArray(pObj.models) ? pObj.models : []
+        const models: LLMModel[] = modelsRaw
+          .map((m: unknown) => {
+            const mObj = asRecord(m)
+            if (!mObj) return null
+            const mId = normalizeString(mObj.id)
+            if (!mId) return null
+            return {
+              id: mId,
+              name: normalizeString(mObj.name, mId),
+            }
+          })
+          .filter(isNonNull)
+        
+        return {
+          id,
+          name: normalizeString(pObj.name, id),
+          endpoint: normalizeString(pObj.endpoint),
+          apiKey: normalizeString(pObj.apiKey),
+          models,
+        }
+      })
+      .filter(isNonNull)
+    
+    return {
+      providers: providers.length > 0 ? providers : defaults.llm.providers,
+    }
+  })()
+
+  return { codeSearch, llm }
+}
+
+function normalizeViewport(raw: unknown): Viewport {
+  const obj = asRecord(raw)
+  if (!obj) return { x: 0, y: 0, zoom: 1 }
+  return {
+    x: typeof obj.x === 'number' ? obj.x : 0,
+    y: typeof obj.y === 'number' ? obj.y : 0,
+    zoom: typeof obj.zoom === 'number' ? obj.zoom : 1,
+  }
+}
+
 function normalizeAppData(raw: unknown): AppData {
   // @@@appdata-migration - data.json is persisted; normalize older shapes (e.g. missing `locked`) for UI stability
   const now = new Date().toISOString()
@@ -257,21 +419,24 @@ function normalizeAppData(raw: unknown): AppData {
           }
         })
         .filter((e) => e.id && e.source && e.target)
+      const viewport = normalizeViewport(canvas.viewport)
 
       return {
         id,
         name: normalizeString(tab.name, 'Canvas'),
         createdAt: normalizeString(tab.createdAt, now),
-        canvas: { nodes, edges },
+        canvas: { nodes, edges, viewport },
       }
     })
     .filter(isNonNull)
 
   const activeTabId = normalizeString(root.activeTabId) || (tabs[0]?.id ?? null)
+  const apiSettings = normalizeAPISettings(root.apiSettings)
   return {
     version: typeof root.version === 'number' ? root.version : 1,
     tabs,
     activeTabId,
+    apiSettings,
   }
 }
 
@@ -296,6 +461,7 @@ export function defaultAppData(): AppData {
                 status: 'idle',
                 error: null,
                 locked: false,
+                muted: false,
                 repoPath: 'examples/example-repo',
                 query: 'How is user authentication handled in this codebase?',
                 debugMessages: false,
@@ -311,6 +477,7 @@ export function defaultAppData(): AppData {
                 status: 'idle',
                 error: null,
                 locked: false,
+                muted: false,
                 fullFile: true,
                 output: null,
               },
@@ -324,6 +491,7 @@ export function defaultAppData(): AppData {
                 status: 'idle',
                 error: null,
                 locked: false,
+                muted: false,
                 model: 'x-ai/grok-4.1-fast',
                 systemPrompt:
                   'You are a senior software engineer. Given code context, propose a concrete implementation plan and the key files to edit.',
@@ -336,9 +504,11 @@ export function defaultAppData(): AppData {
             { id: 'e_search_ctx', source: 'n_search', target: 'n_ctx' },
             { id: 'e_ctx_llm', source: 'n_ctx', target: 'n_llm' },
           ],
+          viewport: { x: 0, y: 0, zoom: 1 },
         },
       },
     ],
+    apiSettings: defaultAPISettings(),
   }
 }
 
@@ -358,4 +528,31 @@ export async function loadAppData(): Promise<AppData> {
 export async function saveAppData(data: AppData): Promise<void> {
   const raw = JSON.stringify(data, null, 2)
   await writeFile(dataPath, raw, 'utf-8')
+}
+
+export async function getCodeSearchApiKey(): Promise<string | null> {
+  const appData = await loadAppData()
+  const activeProviderId = appData.apiSettings.codeSearch.activeProvider
+  const provider = appData.apiSettings.codeSearch.providers.find(p => p.id === activeProviderId)
+  const apiKey = provider?.apiKey?.trim()
+  return apiKey || null
+}
+
+export type LLMProviderConfig = {
+  endpoint: string
+  apiKey: string
+} | null
+
+export async function getLLMProviderByModel(modelId: string): Promise<LLMProviderConfig> {
+  const appData = await loadAppData()
+  for (const provider of appData.apiSettings.llm.providers) {
+    const model = provider.models.find(m => m.id === modelId)
+    if (model && provider.apiKey?.trim() && provider.endpoint?.trim()) {
+      return {
+        endpoint: provider.endpoint.trim(),
+        apiKey: provider.apiKey.trim(),
+      }
+    }
+  }
+  return null
 }

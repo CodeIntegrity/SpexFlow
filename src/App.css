@@ -7,55 +7,133 @@
     'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
 }
 
+/* ===== Modern Tab Bar ===== */
 .sfTabs {
-  height: 44px;
+  height: 48px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
-  border-bottom: 1px solid #e5e5e5;
-  background: #fff;
+  gap: 4px;
+  padding: 8px 12px 0 12px;
+  background: linear-gradient(to bottom, #f8f9fa, #f1f3f4);
+  border-bottom: 1px solid #e0e0e0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.sfTabs::-webkit-scrollbar {
+  display: none;
 }
 
 .sfTab {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  border: 1px solid #e5e5e5;
-  border-radius: 10px;
+  padding: 8px 12px;
+  min-width: 120px;
+  max-width: 200px;
+  background: #fff;
+  border: none;
+  border-radius: 8px 8px 0 0;
   cursor: pointer;
   user-select: none;
-  background: #fafafa;
+  transition: all 0.15s ease;
+  font-size: 13px;
+  color: #5f6368;
+}
+
+.sfTab:hover {
+  background: #f5f5f5;
 }
 
 .sfTabActive {
-  background: #fff;
-  border-color: #cfcfcf;
+  background: #e8eaed;
+  color: #202124;
+  box-shadow: inset 0 -2px 0 0 #1a73e8;
+}
+
+.sfTabActive::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e8eaed;
 }
 
 .sfTabName {
-  font-size: 12px;
-  cursor: text;
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.sfTabActive .sfTabName {
+  color: #202124;
+  font-weight: 600;
 }
 
 .sfTabClose {
-  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
   background: transparent;
+  color: #5f6368;
+  font-size: 16px;
+  line-height: 1;
   cursor: pointer;
-  font-size: 14px;
-  line-height: 14px;
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.sfTab:hover .sfTabClose {
   opacity: 0.7;
 }
 
+.sfTabClose:hover {
+  background: rgba(0, 0, 0, 0.08);
+  opacity: 1 !important;
+}
+
+.sfTabActive .sfTabClose {
+  color: #202124;
+}
+
 .sfTabAdd {
-  margin-left: auto;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  border: 1px solid #e5e5e5;
-  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #5f6368;
+  font-size: 20px;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sfTabAdd:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.sfTabActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding-left: 12px;
 }
 
 .sfBody {
@@ -689,6 +767,22 @@
   color: #666;
 }
 
+.sfOutputViewerContent {
+  flex: 1;
+  min-height: 300px;
+  margin: 16px 20px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f9f9f9;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .sfModalFooter {
   display: flex;
   justify-content: space-between;
@@ -766,6 +860,31 @@
   margin-bottom: 8px;
 }
 
+.sfOutputActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sfViewAllBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  color: #555;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sfViewAllBtn:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
 .sfOutputTitle {
   font-size: 12px;
   font-weight: 600;
@@ -809,4 +928,316 @@
   color: #c53030;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* ===== Settings Button ===== */
+.sfSettingsBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #5f6368;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sfSettingsBtn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: #202124;
+}
+
+/* ===== Settings Modal ===== */
+.sfSettingsModal {
+  width: 90%;
+  max-width: 900px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: sfSlideUp 0.2s ease;
+}
+
+.sfSettingsTabs {
+  display: flex;
+  gap: 0;
+  padding: 0 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.sfSettingsTab {
+  padding: 12px 20px;
+  border: none;
+  background: none;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s ease;
+}
+
+.sfSettingsTab:hover {
+  color: #333;
+}
+
+.sfSettingsTab.active {
+  color: #1a73e8;
+  border-bottom-color: #1a73e8;
+}
+
+.sfSettingsContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* ===== LLM Settings Layout ===== */
+.sfLLMSettings {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 20px;
+  min-height: 400px;
+}
+
+.sfProviderList {
+  border-right: 1px solid #eee;
+  padding-right: 20px;
+}
+
+.sfProviderListHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #333;
+}
+
+.sfProviderItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-size: 13px;
+}
+
+.sfProviderItem:hover {
+  background: #f5f5f5;
+}
+
+.sfProviderItem.active {
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+
+.sfKeyIndicator {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.sfProviderDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sfAddBtn {
+  padding: 4px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  color: #666;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sfAddBtn:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+/* ===== Models Section ===== */
+.sfModelsSection {
+  margin-top: 8px;
+  padding: 16px;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.sfModelsSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.sfModelRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.sfModelIdInput {
+  flex: 1;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-size: 12px;
+}
+
+.sfModelNameInput {
+  flex: 1;
+}
+
+.sfRemoveBtn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  color: #999;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sfRemoveBtn:hover {
+  background: #ffebee;
+  border-color: #ef5350;
+  color: #ef5350;
+}
+
+.sfEmptyModels {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+}
+
+.sfRemoveProviderBtn {
+  margin-top: 16px;
+  padding: 8px 16px;
+  border: 1px solid #ef5350;
+  border-radius: 6px;
+  background: #fff;
+  color: #ef5350;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  align-self: flex-start;
+}
+
+.sfRemoveProviderBtn:hover {
+  background: #ffebee;
+}
+
+.sfNoProviders {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px;
+  color: #666;
+}
+
+/* ===== Code Search Settings ===== */
+.sfCodeSearchSettings {
+  max-width: 400px;
+}
+
+.sfSettingsNote {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666;
+}
+
+/* ===== Select Dropdown ===== */
+.sfSelect {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.sfSelect:hover {
+  border-color: #ccc;
+}
+
+.sfSelect:focus {
+  outline: none;
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.sfSelect:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* ===== Modal Footer Buttons ===== */
+.sfCancelBtn {
+  padding: 10px 20px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sfCancelBtn:hover {
+  background: #f5f5f5;
+}
+
+.sfSaveBtn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.sfSaveBtn:hover {
+  background: #1557b0;
+}
+
+/* ===== MiniMap ===== */
+.sfMiniMap {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+.sfMiniMap .react-flow__minimap-mask {
+  fill: rgba(26, 115, 232, 0.1);
 }

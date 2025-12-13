@@ -126,3 +126,30 @@ export function isValidConnection(
     reason: `Cannot connect ${sourceType} → ${targetType}`,
   }
 }
+
+/**
+ * Ensures a node has all required BaseNodeData properties with defaults.
+ * Used for migrating old data that may be missing newer properties.
+ */
+export function migrateNodeData(node: AppNode): AppNode {
+  const data = node.data
+  let needsMigration = false
+
+  if (typeof data.locked !== 'boolean') needsMigration = true
+  if (typeof data.muted !== 'boolean') needsMigration = true
+  if (typeof data.status !== 'string') needsMigration = true
+  if (typeof data.error !== 'string' && data.error !== null) needsMigration = true
+
+  if (!needsMigration) return node
+
+  return {
+    ...node,
+    data: {
+      ...data,
+      status: typeof data.status === 'string' ? data.status : 'idle',
+      error: typeof data.error === 'string' || data.error === null ? data.error : null,
+      locked: typeof data.locked === 'boolean' ? data.locked : false,
+      muted: typeof data.muted === 'boolean' ? data.muted : false,
+    },
+  } as AppNode
+}

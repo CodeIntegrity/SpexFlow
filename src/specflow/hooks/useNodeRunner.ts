@@ -282,11 +282,41 @@ export function useNodeRunner(
 
           if (node.type === 'code-search-conductor') {
             throwIfAborted(signal)
-            const finalQuery = concatPredStrings(preds, localOutputs).trim()
-            if (!finalQuery) throw new Error('Conductor requires input from predecessor nodes')
+
+            // Get predecessor text (context from upstream nodes)
+            const predecessorText = concatPredStrings(preds, localOutputs).trim()
+
+            // Get user's query (static user-defined content)
+            const userQuery = node.data.query.trim()
+
+            // Validation: require either predecessors OR user query (or both)
+            const hasPredecessors = preds.length > 0 && predecessorText.length > 0
+            const hasUserQuery = userQuery.length > 0
+
+            let finalQuery = ''
+
+            if (!hasPredecessors && !hasUserQuery) {
+              // No predecessors and no user query - prompt for input
+              const prompted = window.prompt('Conductor query?') || ''
+              if (!prompted.trim()) {
+                throw new Error('Conductor requires either predecessor inputs or a user query')
+              }
+              finalQuery = prompted.trim()
+            } else {
+              // Combine predecessor text and user query
+              // Format: predecessor context first, then user query
+              const parts: string[] = []
+              if (predecessorText) {
+                parts.push(predecessorText)
+              }
+              if (userQuery) {
+                parts.push(userQuery)
+              }
+              finalQuery = parts.join('\n\n')
+            }
 
             const model = node.data.model.trim()
-            if (!model) throw new Error('Empty model')
+            if (!model) throw new Error('Conductor requires a model to be selected')
 
             const byId = new Map(snapshot.canvas.nodes.map((n) => [n.id, n] as const))
             const successorIds = snapshot.canvas.edges
@@ -318,8 +348,7 @@ export function useNodeRunner(
                 ...n,
                 data: {
                   ...n.data,
-                  model,
-                  query: finalQuery,
+                  // DO NOT overwrite query - keep user's original value
                   output,
                   status: 'success',
                   error: null,
@@ -453,27 +482,83 @@ export function useNodeRunner(
 
           // LLM node
           throwIfAborted(signal)
-          const context = concatPredStrings(preds, localOutputs)
-          const finalQuery = node.data.query.trim()
-            ? node.data.query.trim()
-            : window.prompt('LLM query?') || ''
-          if (!finalQuery.trim()) throw new Error('Empty query')
 
-          let systemPrompt = node.data.systemPrompt.trim()
-          if (!systemPrompt) {
-            systemPrompt = window.prompt('System prompt?', '') || ''
-            if (!systemPrompt.trim()) throw new Error('Empty systemPrompt')
+          // Get predecessor text (context from upstream nodes)
+          const predecessorText = concatPredStrings(preds, localOutputs).trim()
+
+          // Get user's query (static user-defined content)
+          const userQuery = node.data.query.trim()
+
+          // System prompt is OPTIONAL - empty string is valid
+          const systemPrompt = node.data.systemPrompt.trim()
+
+          // Validation: require either predecessors OR user query (or both)
+          // System prompt is NOT required
+          const hasPredecessors = preds.length > 0 && predecessorText.length > 0
+          const hasUserQuery = userQuery.length > 0
+
+          if (!hasPredecessors && !hasUserQuery) {
+            // No predecessors and no user query - prompt for input
+            const prompted = window.prompt('LLM query?') || ''
+            if (!prompted.trim()) {
+              throw new Error('LLM node requires either predecessor inputs or a user query')
+            }
+            // Use prompted text as the query
+            const finalQuery = prompted.trim()
+
+            const model = node.data.model.trim()
+            if (!model) throw new Error('LLM node requires a model to be selected')
+
+            throwIfAborted(signal)
+            const output = await runLLM({
+              model,
+              systemPrompt, // Can be empty
+              query: finalQuery,
+              context: '', // No predecessor context in this case
+              signal,
+            })
+
+            patchNodeById(nodeId, (n) => {
+              if (n.type !== 'llm') return n
+              return {
+                ...n,
+                data: {
+                  ...n.data,
+                  // DO NOT overwrite query - keep user's original (empty in this case)
+                  output,
+                  status: 'success',
+                  error: null,
+                },
+              }
+            })
+
+            const out: LocalOutput = { kind: 'string', value: output }
+            localOutputs?.set(nodeId, out)
+            return out
           }
 
+          // Normal case: has predecessors and/or user query
           const model = node.data.model.trim()
-          if (!model) throw new Error('Empty model')
+          if (!model) throw new Error('LLM node requires a model to be selected')
+
+          // Combine predecessor text and user query
+          // Format: predecessor context first, then user query
+          // This matches the pattern used by instruction and code-search nodes
+          const queryParts: string[] = []
+          if (predecessorText) {
+            queryParts.push(predecessorText)
+          }
+          if (userQuery) {
+            queryParts.push(userQuery)
+          }
+          const finalQuery = queryParts.join('\n\n')
 
           throwIfAborted(signal)
           const output = await runLLM({
             model,
-            systemPrompt,
+            systemPrompt, // Can be empty - that's valid
             query: finalQuery,
-            context,
+            context: '', // Context is now incorporated into finalQuery
             signal,
           })
 
@@ -483,8 +568,7 @@ export function useNodeRunner(
               ...n,
               data: {
                 ...n.data,
-                systemPrompt,
-                query: finalQuery,
+                // DO NOT overwrite query or systemPrompt - keep user's original values
                 output,
                 status: 'success',
                 error: null,
