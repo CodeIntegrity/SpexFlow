@@ -1,4 +1,4 @@
-# SpecFlow
+![SpexFlow](docs/images/banner.png)
 
 [English](README.md) | 简体中文
 
