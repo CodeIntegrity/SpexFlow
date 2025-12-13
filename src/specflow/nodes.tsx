@@ -9,6 +9,7 @@ import type {
   ManualImportNode,
   NodeStatus,
 } from './types'
+import { LockIcon, MuteIcon } from './components/Icons'
 
 function repoLabel(repoPath: string) {
   const raw = (repoPath || '').trim()
@@ -18,12 +19,24 @@ function repoLabel(repoPath: string) {
   return parts[parts.length - 1] ?? normalized
 }
 
-function statusStyle(status: NodeStatus) {
-  if (status === 'running') return { background: '#fff7d1', borderColor: '#f2c94c' }
-  if (status === 'success') return { background: '#eaffea', borderColor: '#27ae60' }
-  if (status === 'error') return { background: '#ffecec', borderColor: '#eb5757' }
-  return { background: '#fff', borderColor: '#d0d0d0' }
+const STATUS_STYLE: Record<NodeStatus, { background: string; borderColor: string }> = {
+  idle: { background: '#fff', borderColor: '#d0d0d0' },
+  running: { background: '#fff7d1', borderColor: '#f2c94c' },
+  success: { background: '#eaffea', borderColor: '#27ae60' },
+  error: { background: '#ffecec', borderColor: '#eb5757' },
 }
+
+const STATUS_PILL: Record<
+  NodeStatus,
+  { bg: string; border: string; text: string; dot: string; glyph: string | null }
+> = {
+  idle: { bg: '#f5f5f5', border: '#e0e0e0', text: '#555', dot: '#9b9b9b', glyph: null },
+  running: { bg: '#fff2c1', border: '#f2c94c', text: '#6b4d00', dot: '#f2c94c', glyph: null },
+  success: { bg: '#eaffea', border: '#27ae60', text: '#1f7a44', dot: '#27ae60', glyph: '✓' },
+  error: { bg: '#ffecec', border: '#eb5757', text: '#b13b3b', dot: '#eb5757', glyph: '×' },
+}
+
+const HANDLE_STYLE = { width: 10, height: 10, background: '#666' } as const
 
 function NodeShell(props: {
   title: string
@@ -33,7 +46,8 @@ function NodeShell(props: {
   locked: boolean
   muted: boolean
 }) {
-  const style = statusStyle(props.status)
+  const style = STATUS_STYLE[props.status]
+  const pill = STATUS_PILL[props.status]
   return (
     <div
       style={{
@@ -47,23 +61,78 @@ function NodeShell(props: {
         opacity: props.locked ? 0.92 : props.muted ? 0.6 : 1,
       }}
     >
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ width: 10, height: 10, background: '#666' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ width: 10, height: 10, background: '#666' }}
-      />
-      <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span>{props.title}</span>
-        {props.locked && <span style={{ fontSize: 12, opacity: 0.85 }}>🔒</span>}
-        {props.muted && <span style={{ fontSize: 12, opacity: 0.85 }}>🔇</span>}
+      <Handle type="target" position={Position.Left} style={HANDLE_STYLE} />
+      <Handle type="source" position={Position.Right} style={HANDLE_STYLE} />
+
+      <div
+        style={{
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {props.title}
+          </span>
+          {props.locked && (
+            <span
+              style={{ display: 'inline-flex', alignItems: 'center', opacity: 0.75 }}
+              title="locked"
+              aria-label="locked"
+            >
+              <LockIcon size={14} />
+            </span>
+          )}
+          {props.muted && (
+            <span
+              style={{ display: 'inline-flex', alignItems: 'center', opacity: 0.75 }}
+              title="muted"
+              aria-label="muted"
+            >
+              <MuteIcon size={14} />
+            </span>
+          )}
+        </div>
+
+        <span
+          title={`status: ${props.status}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '2px 8px',
+            borderRadius: 999,
+            background: pill.bg,
+            border: `1px solid ${pill.border}`,
+            color: pill.text,
+            fontSize: 11,
+            fontWeight: 600,
+            userSelect: 'none',
+            flex: 'none',
+          }}
+        >
+          {pill.glyph ? (
+            <span style={{ fontSize: 12, lineHeight: 1 }}>{pill.glyph}</span>
+          ) : (
+            <span
+              aria-hidden="true"
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: 99,
+                background: pill.dot,
+                display: 'inline-block',
+              }}
+            />
+          )}
+          <span style={{ textTransform: 'lowercase' }}>{props.status}</span>
+        </span>
       </div>
+
       <div style={{ opacity: 0.8, marginTop: 4 }}>{props.subtitle}</div>
-      <div style={{ marginTop: 8, opacity: 0.7 }}>status: {props.status}</div>
     </div>
   )
 }
