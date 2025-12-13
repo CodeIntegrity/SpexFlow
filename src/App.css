@@ -1352,3 +1352,79 @@
 .sfMiniMap .react-flow__minimap-mask {
   fill: rgba(26, 115, 232, 0.1);
 }
+
+/* ===== Code Search Output Styles ===== */
+.sfCodeSearchOutput {
+  font-size: 12px;
+}
+
+.sfCodeSearchExplanation {
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.sfCodeSearchFiles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sfCodeSearchFile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  min-width: 0;
+}
+
+.sfCodeSearchFileIcon {
+  flex-shrink: 0;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  color: #666;
+}
+
+.sfCodeSearchFilePath {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-size: 11px;
+  color: #333;
+}
+
+.sfCodeSearchRanges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  max-width: 120px;
+  justify-content: flex-end;
+}
+
+.sfCodeSearchRange {
+  padding: 1px 5px;
+  background: #e8f0fe;
+  border-radius: 3px;
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-size: 10px;
+  color: #1a73e8;
+  white-space: nowrap;
+}
+
+.sfCodeSearchEmpty {
+  color: #999;
+  font-style: italic;
+}

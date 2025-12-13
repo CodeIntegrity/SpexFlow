@@ -9,6 +9,19 @@ import { OutputViewerModal } from './OutputViewerModal'
 import { RepoPickerModal } from './RepoPickerModal'
 import { t } from '../i18n'
 import type { ManualImportItem, Language } from '../../../shared/appDataTypes'
+import { CodeSearchOutputPreview } from './CodeSearchOutputPreview'
+
+// @@@ isCodeSearchOutput - 类型守卫，判断 output 是否为 code-search 输出格式
+const isCodeSearchOutput = (
+  output: unknown,
+): output is { explanation?: string; files: Record<string, Array<[number, number]>> } => {
+  return (
+    output !== null &&
+    typeof output === 'object' &&
+    'files' in output &&
+    typeof (output as { files: unknown }).files === 'object'
+  )
+}
 
 type Props = {
   selectedNode: AppNode | null
@@ -484,11 +497,16 @@ export function NodeSidebar({
                 />
               </div>
             </div>
-            <div className="sfOutputPreview">
-              {typeof selectedNode.data.output === 'string'
-                ? selectedNode.data.output.slice(0, 500) + (selectedNode.data.output.length > 500 ? '...' : '')
-                : JSON.stringify(selectedNode.data.output, null, 2).slice(0, 500)}
-            </div>
+            {selectedNode.type !== 'code-search' && (
+              <div className="sfOutputPreview">
+                {typeof selectedNode.data.output === 'string'
+                  ? selectedNode.data.output.slice(0, 500) + (selectedNode.data.output.length > 500 ? '...' : '')
+                  : JSON.stringify(selectedNode.data.output, null, 2).slice(0, 500)}
+              </div>
+            )}
+            {selectedNode.type === 'code-search' && isCodeSearchOutput(selectedNode.data.output) && (
+              <CodeSearchOutputPreview output={selectedNode.data.output} />
+            )}
           </div>
         )}
 

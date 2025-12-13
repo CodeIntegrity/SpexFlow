@@ -1,4 +1,5 @@
 export { NodeSidebar } from './NodeSidebar'
+export { CodeSearchOutputPreview } from './CodeSearchOutputPreview'
 export { ToolbarButton } from './ToolbarButton'
 export { MultiSelectInfo } from './MultiSelectInfo'
 export { TextEditorModal } from './TextEditorModal'
