@@ -1,6 +1,7 @@
 import type { NodeProps } from '@xyflow/react'
 import { Handle, Position } from '@xyflow/react'
 import type {
+  CodeSearchConductorNode,
   CodeSearchNode,
   ContextConverterNode,
   InstructionNode,
@@ -102,6 +103,28 @@ export function InstructionNodeView({ data, selected }: NodeProps<InstructionNod
       title={data.title}
       status={data.status}
       subtitle={firstLine ? `“${firstLine.slice(0, 24)}${firstLine.length > 24 ? '…' : ''}”` : 'instruction'}
+      selected={selected}
+      locked={!!data.locked}
+    />
+  )
+}
+
+export function CodeSearchConductorNodeView({
+  data,
+  selected,
+}: NodeProps<CodeSearchConductorNode>) {
+  const outputsCount = data.output ? Object.keys(data.output).length : 0
+  const q = (data.query || '').trim()
+  const subtitle = outputsCount
+    ? `${outputsCount} queries`
+    : q
+      ? `“${q.slice(0, 24)}${q.length > 24 ? '…' : ''}”`
+      : '(no query)'
+  return (
+    <NodeShell
+      title={data.title}
+      status={data.status}
+      subtitle={subtitle}
       selected={selected}
       locked={!!data.locked}
     />

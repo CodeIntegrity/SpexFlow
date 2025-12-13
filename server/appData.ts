@@ -32,6 +32,14 @@ export type InstructionData = BaseNodeData & {
   output: string | null
 }
 
+export type ConductorOutput = Record<string, string>
+
+export type CodeSearchConductorData = BaseNodeData & {
+  model: string
+  query: string
+  output: ConductorOutput | null
+}
+
 export type LLMData = BaseNodeData & {
   model: string
   systemPrompt: string
@@ -45,6 +53,12 @@ export type AppNode =
     type: 'code-search'
     position: { x: number; y: number }
     data: CodeSearchData
+  }
+  | {
+    id: string
+    type: 'code-search-conductor'
+    position: { x: number; y: number }
+    data: CodeSearchConductorData
   }
   | {
     id: string
@@ -117,7 +131,13 @@ function normalizeNode(raw: unknown): AppNode | null {
   const id = normalizeString(obj.id)
   const type = obj.type
   if (!id) return null
-  if (type !== 'code-search' && type !== 'context-converter' && type !== 'instruction' && type !== 'llm') return null
+  if (
+    type !== 'code-search' &&
+    type !== 'code-search-conductor' &&
+    type !== 'context-converter' &&
+    type !== 'instruction' &&
+    type !== 'llm'
+  ) return null
   const x = typeof position.x === 'number' ? position.x : 0
   const y = typeof position.y === 'number' ? position.y : 0
 
@@ -144,6 +164,30 @@ function normalizeNode(raw: unknown): AppNode | null {
         repoPath: normalizeString(data.repoPath),
         query: normalizeString(data.query),
         debugMessages: normalizeBool(data.debugMessages, false),
+        output: normalizedOutput,
+      },
+    }
+  }
+
+  if (type === 'code-search-conductor') {
+    const output = asRecord(data.output)
+    let normalizedOutput: ConductorOutput | null = null
+    if (output) {
+      const out: Record<string, string> = {}
+      for (const [k, v] of Object.entries(output)) {
+        if (typeof k === 'string' && typeof v === 'string' && v.trim()) out[k] = v
+      }
+      normalizedOutput = Object.keys(out).length > 0 ? out : null
+    }
+
+    return {
+      id,
+      type,
+      position: { x, y },
+      data: {
+        ...base,
+        model: normalizeString(data.model, 'x-ai/grok-4.1-fast'),
+        query: normalizeString(data.query),
         output: normalizedOutput,
       },
     }

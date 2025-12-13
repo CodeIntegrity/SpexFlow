@@ -21,11 +21,12 @@ export async function saveAppData(data: AppData): Promise<void> {
   }
 }
 
-export async function runCodeSearch(args: { repoPath: string; query: string; debugMessages?: boolean }) {
+export async function runCodeSearch(args: { repoPath: string; query: string; debugMessages?: boolean; signal?: AbortSignal }) {
   const res = await fetch('/api/relace-search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(args),
+    signal: args.signal,
   })
   const text = await res.text()
   let data: unknown = null
@@ -50,11 +51,13 @@ export async function buildRepoContext(args: {
   explanation?: string | null
   files: CodeSearchOutput['files']
   fullFile: boolean
+  signal?: AbortSignal
 }) {
   const res = await fetch('/api/repo-context', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(args),
+    signal: args.signal,
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
@@ -69,11 +72,13 @@ export async function runLLM(args: {
   systemPrompt: string
   query: string
   context: string
+  signal?: AbortSignal
 }) {
   const res = await fetch('/api/llm', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(args),
+    signal: args.signal,
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
@@ -81,4 +86,85 @@ export async function runLLM(args: {
   }
   if (typeof data?.output !== 'string') throw new Error('Invalid /api/llm response')
   return data.output as string
+}
+
+function extractJsonObject(text: string): string {
+  const t = text.trim()
+  const fenced = t.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  if (fenced?.[1]) return fenced[1].trim()
+  const first = t.indexOf('{')
+  const last = t.lastIndexOf('}')
+  if (first !== -1 && last !== -1 && last > first) return t.slice(first, last + 1)
+  return t
+}
+
+export async function runConductor(args: {
+  model: string
+  query: string
+  successorIds: string[]
+  successorTitles?: Record<string, string>
+  signal?: AbortSignal
+}): Promise<Record<string, string>> {
+  const ids = [...args.successorIds].filter(Boolean)
+  if (ids.length === 0) throw new Error('Conductor has no code-search successors')
+
+  const systemPrompt = [
+    'You generate code search queries.',
+    '',
+    'Given a task description and a list of search slots, produce a distinct and complementary code search query for each slot.',
+    '',
+    'Output MUST be a single JSON object mapping slot_id -> query string.',
+    'Rules:',
+    '- Return ONLY valid JSON (no markdown, no comments).',
+    '- Include ALL slot_ids exactly as given.',
+    '- Keep each query short (1-2 sentences).',
+  ].join('\n')
+
+  const slotLines = ids.map((id) => {
+    const title = args.successorTitles?.[id]
+    return title ? `- ${id}: ${title}` : `- ${id}`
+  })
+
+  const userQuery = [
+    'Task:',
+    args.query.trim(),
+    '',
+    'Slots (slot_id: title):',
+    ...slotLines,
+    '',
+    'Return JSON now.',
+  ].join('\n')
+
+  const raw = await runLLM({
+    model: args.model,
+    systemPrompt,
+    query: userQuery,
+    context: '',
+    signal: args.signal,
+  })
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(extractJsonObject(raw))
+  } catch (e) {
+    throw new Error(`Conductor returned invalid JSON: ${String((e as Error)?.message ?? e)}`)
+  }
+
+  if (!parsed || typeof parsed !== 'object') throw new Error('Conductor output is not a JSON object')
+  const obj = parsed as Record<string, unknown>
+
+  const missing: string[] = []
+  const out: Record<string, string> = {}
+  for (const id of ids) {
+    const v = obj[id]
+    if (typeof v !== 'string' || !v.trim()) {
+      missing.push(id)
+      continue
+    }
+    out[id] = v.trim()
+  }
+  if (missing.length > 0) {
+    throw new Error(`Conductor output missing queries for: ${missing.join(', ')}`)
+  }
+  return out
 }

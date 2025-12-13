@@ -83,35 +83,266 @@
   font-size: 12px;
 }
 
+/* Toolbar - Vertical left-side layout */
 .sfToolbar {
   position: absolute;
-  top: 10px;
+  top: 80px;
   left: 10px;
   z-index: 5;
   display: flex;
-  gap: 8px;
-  padding: 6px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
   border: 1px solid #e5e5e5;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
   border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .sfToolbarSpacer {
-  width: 10px;
+  height: 8px;
 }
 
-.sfToolbar button {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+.sfToolbarSeparator {
+  width: 100%;
+  height: 1px;
+  background: #e0e0e0;
+  margin: 4px 0;
+}
+
+/* Toolbar button wrapper for tooltip positioning */
+.sfToolbarButtonWrapper {
+  position: relative;
+}
+
+.sfToolbarButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   border: 1px solid #e5e5e5;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  transition: all 0.15s ease;
+}
+
+.sfToolbarButton:hover {
+  background: #f5f5f5;
+  color: #333;
+  border-color: #ddd;
+}
+
+.sfToolbarButton.sfToolbarActive {
+  background: #e8f0fe;
+  color: #1a73e8;
+  border-color: #c2d7f7;
+}
+
+/* Band/Tape Tooltip */
+.sfToolbarTooltip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  pointer-events: none;
+  animation: tooltipSlideIn 0.15s ease-out;
+}
+
+@keyframes tooltipSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+.sfToolbarTooltipContent {
+  background: #1a1a1a;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  position: relative;
+  min-width: 280px;
+}
+
+/* Arrow connector */
+.sfToolbarTooltipContent::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-right-color: #1a1a1a;
+}
+
+.sfToolbarTooltipHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.sfToolbarTooltipLabel {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.sfToolbarTooltipShortcut {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+.sfToolbarTooltipDesc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.4;
+}
+
+/* Canvas cursor based on interaction mode */
+.sfCanvas--hand .react-flow__pane {
+  cursor: grab;
+}
+
+.sfCanvas--hand .react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.sfCanvas--select .react-flow__pane {
+  cursor: crosshair;
+}
+
+.sfChainMgr {
+  position: fixed;
+  top: 110px;
+  left: 12px;
+  z-index: 7;
+  width: 310px;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.sfChainMgrHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid #eaeaea;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.sfChainMgrArrow {
+  width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+}
+
+.sfChainMgrTitle {
+  font-weight: 700;
+}
+
+.sfChainMgrCount {
+  opacity: 0.7;
+}
+
+.sfChainMgrBody {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.sfChainMgrItem {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.sfChainMgrItem:last-child {
+  border-bottom: 0;
+}
+
+.sfChainMgrItemTitle {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.sfChainMgrProgressRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sfChainMgrBar {
+  flex: 1;
+  height: 10px;
+  background: #efefef;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.sfChainMgrBarFill {
+  height: 100%;
+  transition: width 120ms ease;
+}
+
+.sfChainMgrStatusRunning {
+  background: #2f80ed;
+}
+
+.sfChainMgrStatusDone {
+  background: #27ae60;
+}
+
+.sfChainMgrStatusError {
+  background: #eb5757;
+}
+
+.sfChainMgrStatusCancelled {
+  background: #9b9b9b;
+}
+
+.sfChainMgrProgressText {
+  min-width: 72px;
+  text-align: right;
+  opacity: 0.85;
+}
+
+.sfChainMgrActions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sfChainMgrCancel {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
   background: #fff;
   cursor: pointer;
 }
 
-.sfToolbar button:last-child {
-  width: auto;
-  padding: 0 10px;
+.sfChainMgrStatusLabel {
+  font-size: 12px;
+  opacity: 0.7;
 }
 
 .sfSidebar {
@@ -193,4 +424,61 @@
   padding: 10px;
   font-size: 12px;
   margin-bottom: 10px;
+}
+
+/* Multi-select info box */
+.sfMultiSelectInfo {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 6;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  min-width: 160px;
+}
+
+.sfMultiSelectHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.sfMultiSelectCount {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a73e8;
+}
+
+.sfMultiSelectLabel {
+  font-size: 12px;
+  color: #555;
+}
+
+.sfMultiSelectPrimary {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.sfMultiSelectActions {
+  display: flex;
+  gap: 6px;
+}
+
+.sfMultiSelectActions button {
+  padding: 5px 10px;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.sfMultiSelectActions button:hover {
+  background: #f5f5f5;
 }

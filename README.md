@@ -6,6 +6,38 @@ SpecFlow loads local code repos and lets you run a small node-based workflow:
 - **Context Converter** → turns file ranges into plain text context
 - **LLM** → takes plain text context + prompt and generates a spec / plan
 
+## Node Types & Connection Rules
+
+SpecFlow 包含 5 种节点类型，下表展示了它们之间的有效连接关系：
+
+| Source (输出) ↓ \ Target (输入) → | instruction | code-search-conductor | code-search | context-converter | llm |
+|----------------------------------|:-----------:|:---------------------:|:-----------:|:-----------------:|:---:|
+| **instruction**                  | ✅          | ✅                    | ✅          | ❌                | ✅  |
+| **code-search-conductor**        | ❌          | ❌                    | ✅          | ❌                | ❌  |
+| **code-search**                  | ❌          | ❌                    | ❌          | ✅                | ❌  |
+| **context-converter**            | ✅          | ✅                    | ✅          | ❌                | ✅  |
+| **llm**                          | ✅          | ✅                    | ✅          | ❌                | ✅  |
+
+### 连接规则说明
+
+- **instruction** → 输出纯文本，可连接到需要文本输入的节点
+- **code-search-conductor** → 仅输出到 `code-search` 节点，为其分配搜索查询
+- **code-search** → 仅输出到 `context-converter`，提供文件搜索结果
+- **context-converter** → 将搜索结果转为文本上下文，可连接到任何接受文本的节点
+- **llm** → 输出纯文本，可连接到需要文本输入的节点
+
+### 典型工作流
+
+```
+instruction → code-search-conductor → code-search → context-converter → llm
+```
+
+或简单版本：
+
+```
+instruction → code-search → context-converter → llm
+```
+
 ## Dev
 
 - Install: `pnpm install`
@@ -15,7 +47,7 @@ SpecFlow loads local code repos and lets you run a small node-based workflow:
 ## Warning: Huge Search Outputs
 
 The Code Search agent has a `bash` tool that may execute commands like `grep -r ... /repo`.
-If your `repoPath` includes build outputs (like `dist/`) or other generated/minified files, a single match can print **hundreds of KB** (minified bundles often have enormous single-line content). This can blow up message size and trigger “maximum context length” errors even on small repos.
+If your `repoPath` includes build outputs (like `dist/`) or other generated/minified files, a single match can print **hundreds of KB** (minified bundles often have enormous single-line content). This can blow up message size and trigger "maximum context length" errors even on small repos.
 
 Do this instead:
 

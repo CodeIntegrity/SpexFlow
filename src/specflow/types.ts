@@ -31,6 +31,14 @@ export type InstructionData = BaseNodeData & {
   output: string | null
 }
 
+export type ConductorOutput = Record<string, string>
+
+export type CodeSearchConductorData = BaseNodeData & {
+  model: string
+  query: string
+  output: ConductorOutput | null
+}
+
 export type LLMData = BaseNodeData & {
   model: string
   systemPrompt: string
@@ -41,9 +49,15 @@ export type LLMData = BaseNodeData & {
 export type CodeSearchNode = Node<CodeSearchData, 'code-search'>
 export type ContextConverterNode = Node<ContextConverterData, 'context-converter'>
 export type InstructionNode = Node<InstructionData, 'instruction'>
+export type CodeSearchConductorNode = Node<CodeSearchConductorData, 'code-search-conductor'>
 export type LLMNode = Node<LLMData, 'llm'>
 
-export type AppNode = CodeSearchNode | ContextConverterNode | InstructionNode | LLMNode
+export type AppNode =
+  | CodeSearchNode
+  | ContextConverterNode
+  | InstructionNode
+  | CodeSearchConductorNode
+  | LLMNode
 
 export type Canvas = {
   nodes: AppNode[]
@@ -61,4 +75,18 @@ export type AppData = {
   version: number
   tabs: Tab[]
   activeTabId: string | null
+}
+
+export type ChainRunStatus = 'running' | 'completed' | 'cancelled' | 'error'
+
+export type ChainRun = {
+  id: string
+  startedAt: string
+  fromNodeId: string
+  fromNodeTitle: string
+  nodeIds: string[]
+  completedNodeIds: string[]
+  failedNodeIds: string[]
+  status: ChainRunStatus
+  abortController: AbortController
 }
