@@ -12,11 +12,15 @@ It’s optimized for **“finish one well-defined feature in one shot”** rathe
 
 ## Screenshots
 
-**A typical workflow graph** (instruction → search conductor → parallel code searches → context → LLM):
+**A minimal workflow** (instruction → code-search → context → LLM):
+
+![SpecFlow minimal workflow](docs/images/specflow-minimal-workflow.png)
+
+**A larger workflow graph** (instruction → search conductor → parallel code searches → context → LLM):
 
 ![SpecFlow overview](docs/images/specflow-overview.png)
 
-**A larger canvas** where you keep reusable context blocks (e.g. repeated instruction/context nodes) and rerun only the parts that changed:
+**A larger canvas** where you keep reusable context blocks and rerun only the parts that changed:
 
 ![SpecFlow workflow](docs/images/specflow-workflow.png)
 
@@ -52,13 +56,8 @@ pnpm dev
 
 Open **Settings** (top-right) and set:
 
-- **Code Search**: Relace API key (if empty, server falls back to `.apikey`)
+- **Code Search**: Relace API key
 - **LLM providers/models**: add at least one model under a provider with an OpenAI-compatible endpoint
-
-Fallbacks (local-only):
-
-- Code Search key: `.apikey`
-- LLM key: `.llmkey` (OpenRouter)
 
 ### 4) Run a minimal workflow
 
@@ -198,7 +197,7 @@ Open **Settings** (top-right):
   - Add providers with `endpoint` + `apiKey` (must be OpenAI-compatible chat-completions)
   - Add models (model id + display name)
 - **Code Search**:
-  - currently supports Relace; if you don’t set a key here, server falls back to `.apikey`
+  - currently supports Relace
 
 ## Persistence & Files
 
@@ -222,17 +221,6 @@ Open **Settings** (top-right):
 - Proxy: Vite proxies `/api` to `http://localhost:3001` (`vite.config.ts`)
 
 ## Troubleshooting
-
-### Huge search outputs / context blowups
-
-The Code Search agent has a `bash` tool that may execute commands like `grep -r ... /repo`.
-If your `repoPath` includes build outputs (like `dist/`) or other generated/minified files, a single match can print hundreds of KB.
-
-Do this instead:
-
-- Point `repoPath` to your source root (e.g. `src/`) instead of the repo root when possible.
-- Avoid searching `dist/` and `node_modules/` when using grep-like searches.
-- Turn on `debugMessages` on the Code Search node to save the full raw message dump under `logs/relace-search-runs/<runId>.json`.
 
 ### pnpm / corepack errors
 

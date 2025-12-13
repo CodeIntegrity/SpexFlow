@@ -12,7 +12,11 @@ SpecFlow 是一个基于 React Flow 的可视化 context/spec 工作流工具。
 
 ## 截图
 
-**典型工作流图**（instruction → search conductor → 并行 code search → context → LLM）：
+**最小工作流**（instruction → code-search → context → LLM）：
+
+![SpecFlow minimal workflow](docs/images/specflow-minimal-workflow.png)
+
+**较大的工作流图**（instruction → search conductor → 并行 code search → context → LLM）：
 
 ![SpecFlow overview](docs/images/specflow-overview.png)
 
@@ -52,13 +56,8 @@ pnpm dev
 
 点右上角 **Settings**：
 
-- **Code Search**：填 Relace API key（不填则后端回退读取 `.apikey`）
+- **Code Search**：填 Relace API key
 - **LLM**：配置 provider / model（需要 OpenAI 兼容的 chat-completions 接口）
-
-本地文件回退：
-
-- Code Search key：`.apikey`
-- LLM key：`.llmkey`（OpenRouter）
 
 ### 4) 跑一条最小工作流
 
@@ -212,7 +211,7 @@ manual-import → context-converter → llm
   - provider 需要 `endpoint` + `apiKey`（必须是 OpenAI 兼容 chat-completions）
   - 配置 model（model id + 展示名）
 - **Code Search**：
-  - 目前仅支持 Relace；不填 key 时后端回退读取 `.apikey`
+  - 目前仅支持 Relace
 
 ## 持久化与文件
 
@@ -236,17 +235,6 @@ manual-import → context-converter → llm
 - 代理：Vite 将 `/api` 代理到 `http://localhost:3001`（`vite.config.ts`）
 
 ## 排错
-
-### 搜索输出过大 / 上下文爆炸
-
-Code Search agent 带一个 `bash` 工具，可能会执行类似 `grep -r ... /repo` 的命令。
-如果你的 `repoPath` 包含 `dist/` 之类的构建产物或压缩文件，一次命中可能输出数百 KB，容易导致上下文爆炸。
-
-建议：
-
-- 尽量让 `repoPath` 指向源码根目录（例如 `src/`），而不是整个仓库根目录。
-- grep 类搜索尽量排除 `dist/` 和 `node_modules/`。
-- 打开 Code Search 节点的 `debugMessages`，把完整 message dump 写到 `logs/relace-search-runs/<runId>.json` 方便排查。
 
 ### pnpm / corepack 报错
 
