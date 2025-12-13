@@ -2,6 +2,26 @@
 
 English | [简体中文](README.zh.md)
 
+SpecFlow is a visual context/spec workflow tool built on React Flow. It helps you turn a concrete feature request into:
+
+1) curated repo context (via code search or manual selection), then  
+2) a high-quality implementation plan/spec from an LLM, then  
+3) a clean prompt you can paste into a “fresh-context” code agent (Codex / Claude Code / etc.).
+
+It’s optimized for **“finish one well-defined feature in one shot”** rather than “keep everything in your head”.
+
+## Screenshots
+
+**A typical workflow graph** (instruction → search conductor → parallel code searches → context → LLM):
+
+![SpecFlow overview](docs/images/specflow-overview.png)
+
+**A larger canvas** where you keep reusable context blocks (e.g. repeated instruction/context nodes) and rerun only the parts that changed:
+
+![SpecFlow workflow](docs/images/specflow-workflow.png)
+
+## What You Build With It
+
 SpecFlow loads a local code repo and lets you run a small node-based workflow:
 
 - **Instruction** → produce/compose plain text input
@@ -11,7 +31,122 @@ SpecFlow loads a local code repo and lets you run a small node-based workflow:
 - **Context Converter** → turns file ranges into line-numbered text context
 - **LLM** → takes context + prompt and generates an output (spec/plan/etc.)
 
+## Quick Start
+
+### 1) Install
+
+```bash
+pnpm install
+```
+
+### 2) Run
+
+```bash
+pnpm dev
+```
+
+- Web UI: open Vite dev server (printed in terminal, typically `http://localhost:5173`)
+- Server health: `curl http://localhost:3001/api/health`
+
+### 3) Configure keys (recommended)
+
+Open **Settings** (top-right) and set:
+
+- **Code Search**: Relace API key (if empty, server falls back to `.apikey`)
+- **LLM providers/models**: add at least one model under a provider with an OpenAI-compatible endpoint
+
+Fallbacks (local-only):
+
+- Code Search key: `.apikey`
+- LLM key: `.llmkey` (OpenRouter)
+
+### 4) Run a minimal workflow
+
+Use the default canvas, or build:
+
+```
+instruction → code-search → context-converter → llm
+```
+
+Then copy the LLM output and paste it into your coding agent.
+
+## Core Concepts
+
+### Canvas = cached pipeline
+
+- A canvas is a directed graph (nodes + edges).
+- Each node has **inputs** (edges into it) and **output** (stored on the node).
+- Node outputs are persisted locally in `data.json` so you can reuse them and rerun only the stale pieces.
+
+### Run vs Chain
+
+- **Run**: executes one node (requires predecessors succeeded, except Code Search can run with its own query).
+- **Chain**: executes the whole downstream subgraph from a node, respecting dependencies, and shows progress in **Chain Manager**.
+
+### Locked / Muted
+
+- **Locked**: node cannot be dragged and won’t be reset by Chain; useful for “stable cached context”.
+- **Muted**: node returns empty output immediately (no API calls); useful for temporarily disabling branches.
+
+## Node Types
+
+### `instruction`
+
+- Purpose: write your feature request / constraints / acceptance criteria.
+- Input: optional predecessor text nodes.
+- Output: a single composed string (predecessor text + your typed text).
+
+### `code-search-conductor`
+
+- Purpose: generate multiple complementary search queries for several downstream Code Search nodes.
+- Input: optional predecessor text nodes + its own query field.
+- Output: JSON mapping `successor_node_id -> query`.
+- Requirement: must have at least one **direct successor** `code-search` node (it assigns queries by node id).
+
+### `code-search`
+
+- Purpose: use Relace fast agentic search to find relevant code.
+- Config:
+  - `repoPath`: absolute path or relative to this project directory
+  - `query`: natural language query
+  - `debugMessages`: dumps full raw tool conversation to `logs/relace-search-runs/<runId>.json`
+- Output shape (shared with Manual Import):
+  - `explanation: string`
+  - `files: Record<relPath, Array<[startLine,endLine]>>`
+
+### `manual-import` (Manual Import)
+
+- Purpose: hand-pick local files/folders as context (no external search).
+- Config:
+  - `repoPath`
+  - `items`: selected files and folders (stored as relative paths; **contents are never persisted**)
+- Folder behavior:
+  - **Non-recursive**: includes only direct child files (one level).
+  - Filters by a hardcoded “trusted extensions” allowlist (includes `.md`) in `server/repoBrowser.ts`.
+- Run behavior:
+  - Validates every selected path at run time; if a file/folder no longer exists, the node fails loudly.
+- Output: identical shape to `code-search` so downstream Context Converter can reuse the same path/range format.
+
+### `context-converter`
+
+- Purpose: turn `{ explanation, files }` into a single line-numbered context string.
+- Input: one or more `code-search` / `manual-import` predecessors.
+- Config: `fullFile` (full files) vs ranges.
+- Output: a single string, joining multiple predecessor contexts with `---`.
+
+### `llm`
+
+- Purpose: run a chat-completions style LLM call over the composed prompt.
+- Input: optional predecessor text nodes.
+- Config:
+  - `model` (selected from Settings)
+  - `systemPrompt` (optional)
+  - `query`
+- Output: a single string.
+
 ## Node Types & Connection Rules
+
+The app enforces a connection matrix (invalid edges are rejected). The current rules:
 
 | Source (output) ↓ \\ Target (input) → | instruction | code-search-conductor | manual-import | code-search | context-converter | llm |
 |--------------------------------------|:-----------:|:---------------------:|:------------:|:-----------:|:-----------------:|:---:|
@@ -22,31 +157,55 @@ SpecFlow loads a local code repo and lets you run a small node-based workflow:
 | **context-converter**                | ✅          | ✅                    | ❌           | ✅          | ❌                | ✅  |
 | **llm**                              | ✅          | ✅                    | ❌           | ✅          | ❌                | ✅  |
 
-Typical workflows:
+## UI Guide
 
-```
-instruction → code-search → context-converter → llm
-```
+### Toolbar
 
-```
-instruction → code-search-conductor → code-search → context-converter → llm
-```
+- **Hand Mode**: pan the canvas (`H`, or hold `Space` temporarily)
+- **Select Mode**: select nodes, drag to box-select (`V`)
+- **Add nodes**: Code Search / Manual Import / Search Conductor / Context / Instruction / LLM
+- **Reset Canvas**: clears outputs of all unlocked nodes (must not have running nodes)
 
-```
-manual-import → context-converter → llm
-```
+### Sidebar (single selection)
 
-## Dev
+- **Settings** for the selected node (fields vary per node type)
+- Actions:
+  - **Run**: run this node
+  - **Chain**: run everything downstream
+  - **Reset**: clear this node’s output (unless locked)
+- Output:
+  - Preview + “View All”
+  - Copy output to clipboard
 
-- Install: `pnpm install`
-- Run: `pnpm dev` (web + server)
-- Health: `curl http://localhost:3001/api/health`
+### Multi-select
 
-## Keys & Settings
+- Drag-select multiple nodes → a small panel appears with **Copy** and **Delete**.
+- Hotkeys:
+  - `Cmd/Ctrl+C`: copy selected nodes
+  - `Cmd/Ctrl+V`: paste
 
-- Code Search (Relace): set via **Settings** UI (recommended), or fallback `.apikey`
-- LLM: configure providers/models in **Settings** (OpenAI-compatible endpoints). If not configured, server falls back to OpenRouter via `.llmkey`
-- UI language: toggle in **Settings** (English / 中文)
+### Tabs
+
+- You can keep multiple canvases as tabs.
+- All tabs persist in `data.json`.
+
+## Settings
+
+Open **Settings** (top-right):
+
+- **Language**: English / 中文
+- **LLM Providers**:
+  - Add providers with `endpoint` + `apiKey` (must be OpenAI-compatible chat-completions)
+  - Add models (model id + display name)
+- **Code Search**:
+  - currently supports Relace; if you don’t set a key here, server falls back to `.apikey`
+
+## Persistence & Files
+
+- `data.json`: all canvases + outputs + settings (gitignored)
+  - delete it to reset the app state
+- `logs/relace-search.jsonl`: appended run logs (gitignored)
+- `logs/relace-search-runs/<runId>.json`: optional full message dumps when `debugMessages` is enabled
 
 ## Manual Import
 
@@ -55,13 +214,26 @@ manual-import → context-converter → llm
 - No file contents are persisted; every run validates paths on disk and Context Converter reads files on demand.
 - Node type id: `manual-import` (outputs the same `{ explanation, files }` shape as Code Search).
 
-## Warning: Huge Search Outputs
+## Dev / Architecture
 
-The Code Search agent can run `bash` tool calls that may execute commands like `grep -r ... /repo`.
-If your `repoPath` includes build outputs (like `dist/`) or other generated/minified files, a single match can print hundreds of KB (minified bundles often have enormous single-line content).
+- Frontend: Vite + React (`src/`)
+- Graph UI: React Flow (`@xyflow/react`)
+- Backend: Express + TypeScript (`server/`), runs via `tsx watch`
+- Proxy: Vite proxies `/api` to `http://localhost:3001` (`vite.config.ts`)
+
+## Troubleshooting
+
+### Huge search outputs / context blowups
+
+The Code Search agent has a `bash` tool that may execute commands like `grep -r ... /repo`.
+If your `repoPath` includes build outputs (like `dist/`) or other generated/minified files, a single match can print hundreds of KB.
 
 Do this instead:
 
 - Point `repoPath` to your source root (e.g. `src/`) instead of the repo root when possible.
 - Avoid searching `dist/` and `node_modules/` when using grep-like searches.
 - Turn on `debugMessages` on the Code Search node to save the full raw message dump under `logs/relace-search-runs/<runId>.json`.
+
+### pnpm / corepack errors
+
+If you hit `Cannot find matching keyid` from corepack, install pnpm directly (see `AGENTS.md`).
