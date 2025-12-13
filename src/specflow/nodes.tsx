@@ -98,11 +98,14 @@ export function LLMNodeView({ data, selected }: NodeProps<LLMNode>) {
 
 export function InstructionNodeView({ data, selected }: NodeProps<InstructionNode>) {
   const firstLine = (data.text || '').split('\n')[0]?.trim()
+  const subtitle = firstLine
+    ? `"${firstLine.slice(0, 24)}${firstLine.length > 24 ? '…' : ''}"`
+    : '(accepts predecessor input)'
   return (
     <NodeShell
       title={data.title}
       status={data.status}
-      subtitle={firstLine ? `“${firstLine.slice(0, 24)}${firstLine.length > 24 ? '…' : ''}”` : 'instruction'}
+      subtitle={subtitle}
       selected={selected}
       locked={!!data.locked}
     />
@@ -118,7 +121,7 @@ export function CodeSearchConductorNodeView({
   const subtitle = outputsCount
     ? `${outputsCount} queries`
     : q
-      ? `“${q.slice(0, 24)}${q.length > 24 ? '…' : ''}”`
+      ? `"${q.slice(0, 24)}${q.length > 24 ? '…' : ''}"`
       : '(no query)'
   return (
     <NodeShell

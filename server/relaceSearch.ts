@@ -234,17 +234,19 @@ const relaceTools = [
   },
 ] as const
 
-function requireRepoPath(repoRoot: string, toolPath: string) {
+type RepoPathResult = { ok: true; path: string } | { ok: false; error: string }
+
+function safeRequireRepoPath(repoRoot: string, toolPath: string): RepoPathResult {
   // @@@repo-path-mapping - model assumes `/repo`, we map to user-provided local dir
-  if (toolPath === '/repo' || toolPath === '/repo/') return repoRoot
+  if (toolPath === '/repo' || toolPath === '/repo/') return { ok: true, path: repoRoot }
   if (!toolPath.startsWith('/repo/')) {
-    throw new Error(`Tool path must start with /repo/: got ${toolPath}`)
+    return { ok: false, error: `Error: Tool path must start with /repo/: got ${toolPath}` }
   }
   const posixRemainder = path.posix.normalize(toolPath.slice('/repo/'.length))
   if (posixRemainder.startsWith('..')) {
-    throw new Error(`Path escapes /repo: ${toolPath}`)
+    return { ok: false, error: `Error: Path escapes /repo: ${toolPath}` }
   }
-  return path.join(repoRoot, ...posixRemainder.split('/'))
+  return { ok: true, path: path.join(repoRoot, ...posixRemainder.split('/')) }
 }
 
 function truncateToolOutput(label: string, content: string) {
@@ -285,8 +287,21 @@ function getMessagesStats(messages: ChatMessage[]) {
 }
 
 async function viewFile(repoRoot: string, args: { path: string; view_range: [number, number] }) {
-  const resolved = requireRepoPath(repoRoot, args.path)
-  const content = await readFile(resolved, 'utf-8')
+  const resolvedResult = safeRequireRepoPath(repoRoot, args.path)
+  if (!resolvedResult.ok) return resolvedResult.error
+
+  const resolved = resolvedResult.path
+  let content: string
+  try {
+    content = await readFile(resolved, 'utf-8')
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException
+    if (e.code === 'ENOENT') return `Error: File not found: ${args.path}`
+    if (e.code === 'EACCES') return `Error: Permission denied: ${args.path}`
+    if (e.code === 'EISDIR') return `Error: Path is a directory, not a file: ${args.path}`
+    return `Error: Failed to read file ${args.path}: ${e.message}`
+  }
+
   const lines = content.split('\n')
 
   const startLine = Math.max(1, args.view_range[0] ?? 1)
@@ -307,13 +322,25 @@ async function viewFile(repoRoot: string, args: { path: string; view_range: [num
 }
 
 async function viewDirectory(repoRoot: string, args: { path: string; include_hidden: boolean }) {
-  const resolvedRoot = requireRepoPath(repoRoot, args.path)
+  const resolvedResult = safeRequireRepoPath(repoRoot, args.path)
+  if (!resolvedResult.ok) return resolvedResult.error
+
+  const resolvedRoot = resolvedResult.path
   const out: string[] = []
   const limit = 250
 
   async function walk(dirAbs: string, baseAbs: string) {
     if (out.length >= limit) return
-    const entries = await readdir(dirAbs, { withFileTypes: true })
+    let entries
+    try {
+      entries = await readdir(dirAbs, { withFileTypes: true })
+    } catch (err) {
+      const e = err as NodeJS.ErrnoException
+      // @@@walk-errors - subdirectory errors are logged inline rather than aborting
+      const rel = path.relative(baseAbs, dirAbs).split(path.sep).join('/') || '.'
+      out.push(`[Error reading ${rel}: ${e.code ?? e.message}]`)
+      return
+    }
     entries.sort((a, b) => a.name.localeCompare(b.name))
 
     for (const entry of entries) {
@@ -329,6 +356,18 @@ async function viewDirectory(repoRoot: string, args: { path: string; include_hid
         out.push(rel)
       }
     }
+  }
+
+  try {
+    const rootStat = await stat(resolvedRoot)
+    if (!rootStat.isDirectory()) {
+      return `Error: Path is not a directory: ${args.path}`
+    }
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException
+    if (e.code === 'ENOENT') return `Error: Directory not found: ${args.path}`
+    if (e.code === 'EACCES') return `Error: Permission denied: ${args.path}`
+    return `Error: Failed to access directory ${args.path}: ${e.message}`
   }
 
   await walk(resolvedRoot, resolvedRoot)
@@ -363,9 +402,13 @@ async function grepSearch(
   } catch (err: unknown) {
     const code = (err as { code?: unknown }).code
     if (typeof code === 'number' && code === 1) return 'No matches found.'
+    // @@@grep-error-feedback - return error details to model instead of throwing
     const stderr = (err as { stderr?: unknown }).stderr
+    const stdout = (err as { stdout?: unknown }).stdout
     const stderrText = typeof stderr === 'string' ? stderr : ''
-    throw new Error(`rg failed: ${stderrText || String(err)}`)
+    const stdoutText = typeof stdout === 'string' ? stdout : ''
+    const details = [stderrText, stdoutText].filter(Boolean).join('\n').trim()
+    return `Error: grep_search failed (exit=${code ?? 'unknown'}): ${details || String(err)}`
   }
 }
 
@@ -486,29 +529,41 @@ export async function runRelaceSearch(args: RunRelaceSearchArgs): Promise<RunRel
       throw new Error(`Model returned no tool calls before report_back. content=${assistant.content ?? ''}`)
     }
 
+    // @@@tool-error-safety - catch all tool errors and return them as feedback to the model
     const toolResults = await Promise.all(
       toolCalls.map(async (call) => {
         const name = call.function.name
-        const rawArgs = JSON.parse(call.function.arguments ?? '{}')
+        try {
+          let rawArgs: unknown
+          try {
+            rawArgs = JSON.parse(call.function.arguments ?? '{}')
+          } catch {
+            return { tool_call_id: call.id, content: `Error: Invalid JSON arguments for tool ${name}: ${call.function.arguments}` }
+          }
 
-        if (name === 'view_file') {
-          const content = await viewFile(args.repoRoot, rawArgs)
-          return { tool_call_id: call.id, content }
-        }
-        if (name === 'view_directory') {
-          const content = await viewDirectory(args.repoRoot, rawArgs)
-          return { tool_call_id: call.id, content }
-        }
-        if (name === 'grep_search') {
-          const content = await grepSearch(args.repoRoot, rawArgs)
-          return { tool_call_id: call.id, content }
-        }
-        if (name === 'bash') {
-          const content = await bashTool(args.repoRoot, rawArgs)
-          return { tool_call_id: call.id, content }
-        }
+          if (name === 'view_file') {
+            const content = await viewFile(args.repoRoot, rawArgs as Parameters<typeof viewFile>[1])
+            return { tool_call_id: call.id, content }
+          }
+          if (name === 'view_directory') {
+            const content = await viewDirectory(args.repoRoot, rawArgs as Parameters<typeof viewDirectory>[1])
+            return { tool_call_id: call.id, content }
+          }
+          if (name === 'grep_search') {
+            const content = await grepSearch(args.repoRoot, rawArgs as Parameters<typeof grepSearch>[1])
+            return { tool_call_id: call.id, content }
+          }
+          if (name === 'bash') {
+            const content = await bashTool(args.repoRoot, rawArgs as Parameters<typeof bashTool>[1])
+            return { tool_call_id: call.id, content }
+          }
 
-        throw new Error(`Unknown tool: ${name}`)
+          return { tool_call_id: call.id, content: `Error: Unknown tool: ${name}` }
+        } catch (err) {
+          // Last-resort catch for any unexpected error that slips through
+          const message = err instanceof Error ? err.message : String(err)
+          return { tool_call_id: call.id, content: `Error: Tool "${name}" failed unexpectedly: ${message}` }
+        }
       }),
     )
 

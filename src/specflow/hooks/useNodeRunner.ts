@@ -139,10 +139,55 @@ export function useNodeRunner(
         try {
           if (node.type === 'instruction') {
             throwIfAborted(signal)
-            const predText = concatPredStrings(preds, localOutputs).trim()
-            const ownText = node.data.text.trim()
-            const finalText = ownText || predText || window.prompt('Instruction?') || ''
-            if (!finalText.trim()) throw new Error('Empty instruction')
+
+            // Get dynamic input from predecessors (like context-converter does)
+            const predecessorText = concatPredStrings(preds, localOutputs).trim()
+
+            // Get user's instruction text (this is the static user-defined content)
+            const userInstruction = node.data.text.trim()
+
+            // Validation: require either predecessors OR user instruction (or both)
+            const hasPredecessors = preds.length > 0 && predecessorText.length > 0
+            const hasUserInstruction = userInstruction.length > 0
+
+            if (!hasPredecessors && !hasUserInstruction) {
+              // No predecessors and no user text - prompt for input
+              const prompted = window.prompt('Instruction?') || ''
+              if (!prompted.trim()) {
+                throw new Error('Instruction node requires either predecessor inputs or user instruction text')
+              }
+              // If user provides text via prompt, treat it as user instruction
+              const finalText = prompted.trim()
+
+              patchNodeById(nodeId, (n) => {
+                if (n.type !== 'instruction') return n
+                return {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    text: finalText, // Save prompted text as user instruction
+                    output: finalText,
+                    status: 'success',
+                    error: null,
+                  },
+                }
+              })
+
+              const out: LocalOutput = { kind: 'string', value: finalText }
+              localOutputs?.set(nodeId, out)
+              return out
+            }
+
+            // Combine predecessor text and user instruction
+            // Format: predecessor context first, then user instruction
+            const parts: string[] = []
+            if (predecessorText) {
+              parts.push(predecessorText)
+            }
+            if (userInstruction) {
+              parts.push(userInstruction)
+            }
+            const finalText = parts.join('\n\n')
 
             patchNodeById(nodeId, (n) => {
               if (n.type !== 'instruction') return n
@@ -150,8 +195,8 @@ export function useNodeRunner(
                 ...n,
                 data: {
                   ...n.data,
-                  text: finalText,
-                  output: finalText,
+                  // DO NOT overwrite text - keep user's original instruction
+                  output: finalText, // Store combined output
                   status: 'success',
                   error: null,
                 },
