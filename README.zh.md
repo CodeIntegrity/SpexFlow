@@ -75,7 +75,7 @@ instruction → code-search → context-converter → llm
 
 ### Run vs Chain
 
-- **Run**：只跑一个节点（通常要求上游已经 success；Code Search 例外：自己有 query 时可直接跑）。
+- **Run**：只跑一个节点；只要连了上游，就必须所有上游节点为 `success`。
 - **Chain**：从一个节点开始跑整条下游子图，按依赖关系调度，并在 **Chain Manager** 展示进度。
 
 ### Locked / Muted

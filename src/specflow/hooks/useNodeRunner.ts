@@ -186,8 +186,7 @@ export function useNodeRunner(
 
         const preds = predecessors(snapshot.canvas.nodes, snapshot.canvas.edges, nodeId)
         if (mode === 'single') {
-          const canBypassPreds = node.type === 'code-search' && node.data.query.trim()
-          if (!canRunFromPredecessors(preds) && !canBypassPreds) {
+          if (!canRunFromPredecessors(preds)) {
             throw new Error('Predecessors not succeeded yet.')
           }
         }

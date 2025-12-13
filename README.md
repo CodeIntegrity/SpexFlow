@@ -75,7 +75,7 @@ Then copy the LLM output and paste it into your coding agent.
 
 ### Run vs Chain
 
-- **Run**: executes one node (requires predecessors succeeded, except Code Search can run with its own query).
+- **Run**: executes one node. If the node has any incoming edges, all predecessors must be `success`.
 - **Chain**: executes the whole downstream subgraph from a node, respecting dependencies, and shows progress in **Chain Manager**.
 
 ### Locked / Muted
