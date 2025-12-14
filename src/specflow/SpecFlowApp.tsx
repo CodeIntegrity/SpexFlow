@@ -78,6 +78,24 @@ export function SpecFlowApp() {
 
   const language = appData.ui.language
 
+  const mutedNodeIds = useMemo(() => {
+    return new Set(activeTab.canvas.nodes.filter((n) => n.data.muted).map((n) => n.id))
+  }, [activeTab.canvas.nodes])
+
+  const rfEdges = useMemo(() => {
+    return activeTab.canvas.edges.map((edge) => {
+      const isConnectedToMuted = mutedNodeIds.has(edge.source) || mutedNodeIds.has(edge.target)
+      if (!isConnectedToMuted) return edge
+      return {
+        ...edge,
+        style: {
+          ...edge.style,
+          opacity: 0.4,
+        },
+      }
+    })
+  }, [activeTab.canvas.edges, mutedNodeIds])
+
   // Live viewport ref for immediate access (not debounced)
   const liveViewportRef = useRef<Viewport>(activeTab.canvas.viewport ?? { x: 0, y: 0, zoom: 1 })
 
@@ -282,7 +300,7 @@ export function SpecFlowApp() {
           <ReactFlow
             key={activeTab.id}
             nodes={rfNodes}
-            edges={activeTab.canvas.edges}
+            edges={rfEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
