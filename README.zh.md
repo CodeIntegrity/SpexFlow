@@ -230,6 +230,15 @@ manual-import → context-converter → llm
 - 后端：Express + TypeScript（`server/`），`tsx watch` 运行
 - 代理：Vite 将 `/api` 代理到 `http://localhost:3001`（`vite.config.ts`）
 
+## Roadmap
+
+- [ ] 代码文件自动合并/去重 + Context Converter 节点输出可视化
+- [ ] 导出画布到本地文件
+- [ ] 自定义 LLM 参数（如 reasoning、temperature）
+- [ ] 支持本地 LLM
+- [ ] Token 用量统计
+- [ ] 运行历史备份
+
 ## 排错
 
 ### pnpm / corepack 报错

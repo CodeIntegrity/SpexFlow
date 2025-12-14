@@ -216,6 +216,15 @@ Open **Settings** (top-right):
 - Backend: Express + TypeScript (`server/`), runs via `tsx watch`
 - Proxy: Vite proxies `/api` to `http://localhost:3001` (`vite.config.ts`)
 
+## Roadmap
+
+- [ ] Code file auto merge/deduplication + visualization for context converter node output
+- [ ] Export canvas to local file
+- [ ] Custom LLM parameters (e.g. reasoning, temperature)
+- [ ] Support local LLMs
+- [ ] Token statistics
+- [ ] Backup running history
+
 ## Troubleshooting
 
 ### pnpm / corepack errors
